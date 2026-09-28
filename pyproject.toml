@@ -3,6 +3,8 @@ name = "histostate"
 version = "0.1.0"
 description = "Predict glioblastoma cell-state composition from H&E slides with pathology foundation models."
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [
     { name = "Todd Creasy", email = "toddcreasy@users.noreply.github.com" }
 ]
