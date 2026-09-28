@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+
+# Cached embeddings and downloaded data
+data/
+
+# Experiment tracking
+mlruns/
+mlartifacts/
