@@ -17,15 +17,15 @@ NPC-like) from routine H&E slides, using pathology foundation models.
 ## Layout
 
 ```
-src/histostate/     reusable package code
-tutorials/          step-by-step learning exercises
-tests/              pytest tests
-data/               cached embeddings (git-ignored)
+src/histostate/     package code
+tests/              pytest tests, no network by default
+scripts/            one-shot scripts, never imported
+docs/               long-form docs
 ```
 
 ## Roadmap
 
-- [x] Step 1: linear probe on NCT-CRC-HE (`tutorials/01_linear_probe`)
+- [ ] Step 1: linear probe on NCT-CRC-HE
 - [ ] Step 2: attention MIL on Camelyon16 features
 - [ ] Step 3: tile and embed TCGA-GBM slides
 - [ ] Step 4: cell-state labels from bulk RNA-seq deconvolution

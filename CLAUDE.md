@@ -246,16 +246,16 @@ run, or explain the thing inside it.
 
 Goal: a clean repo that lints, tests, and installs from lockfile.
 
-- [ ] `uv init --package` with `pyproject.toml`: project metadata, `requires-python = ">=3.12"`, `uv_build` backend, `.python-version`
-- [ ] Dev deps via `uv add --dev`: `ruff`, `pytest`, `pre-commit`
-- [ ] `[tool.ruff]` config: line length, target version, lint rules (at least `E`, `F`, `I`, `B`, `UP`, `SIM`); format enabled
-- [ ] `[tool.pytest.ini_options]`: `testpaths = ["tests"]`, a `network` marker skipped by default
-- [ ] `.pre-commit-config.yaml` with ruff lint and format hooks; `uv run pre-commit install`
-- [ ] Directory layout created as above, with `src/histostate/__init__.py` and one passing test in `tests/`
-- [ ] `.gitignore` (Python, `.venv`, `.env`, caches, IDE)
-- [ ] `.env.example` created (empty until the app reads a variable)
-- [ ] README: project name, one-line purpose, setup commands (`uv sync`, `uv run pytest`)
-- [ ] Initial commit pushed
+- [x] `uv init --package` with `pyproject.toml`: project metadata, `requires-python = ">=3.12"`, `uv_build` backend, `.python-version`
+- [x] Dev deps via `uv add --dev`: `ruff`, `pytest`, `pre-commit`
+- [x] `[tool.ruff]` config: line length, target version, lint rules (at least `E`, `F`, `I`, `B`, `UP`, `SIM`); format enabled
+- [x] `[tool.pytest.ini_options]`: `testpaths = ["tests"]`, a `network` marker skipped by default
+- [x] `.pre-commit-config.yaml` with ruff lint and format hooks; `uv run pre-commit install`
+- [x] Directory layout created as above, with `src/histostate/__init__.py` and one passing test in `tests/`
+- [x] `.gitignore` (Python, `.venv`, `.env`, caches, IDE)
+- [x] `.env.example` created (empty until the app reads a variable)
+- [x] README: project name, one-line purpose, setup commands (`uv sync`, `uv run pytest`)
+- [x] Initial commit pushed
 
 STOP gate 0: show clean output from `uv run ruff check .`, `uv run ruff format --check .`,
 and `uv run pytest`.
