@@ -1,4 +1,4 @@
-"""Stage 2: a one-hidden-layer MLP on PathMNIST pixels, weights written by hand.
+"""Stage 2: a one-hidden-layer MLP on PathMNIST pixels, built from nn.Linear layers.
 
 Run: uv run python scripts/stage2_mlp.py [--lr 0.003] [--epochs 15] [--hidden 256]
                                          [--batch-size 128] [--device cpu]
@@ -11,6 +11,7 @@ import time
 import torch
 from medmnist import PathMNIST
 
+from histostate.mlp import MLP
 from histostate.softmax import cross_entropy
 
 parser = argparse.ArgumentParser()
@@ -44,23 +45,25 @@ n_features, n_classes = x_train.shape[1], 9
 
 # He initialization: random, scaled by sqrt(2 / inputs) so values keep a steady size per layer.
 # Starting at zero would make every hidden unit identical forever.
+model = MLP(n_features, args.hidden, n_classes).to(device)
+
+# MLP() ran PyTorch's default init, which used up random numbers. Reseed so the He weights and
+# every shuffle below draw the same numbers as the hand-written version did.
+torch.manual_seed(0)
 W1 = torch.randn(n_features, args.hidden, device=device) * math.sqrt(2 / n_features)
 W2 = torch.randn(args.hidden, n_classes, device=device) * math.sqrt(2 / args.hidden)
-W1.requires_grad_()
-W2.requires_grad_()
-b1 = torch.zeros(args.hidden, device=device, requires_grad=True)
-b2 = torch.zeros(n_classes, device=device, requires_grad=True)
-params = [W1, b1, W2, b2]
-optimizer = torch.optim.SGD(params, lr=args.lr)
+
+# nn.Linear stores weights as (outputs, inputs), hence the .T when copying them in.
+with torch.no_grad():
+    model.hidden.weight.copy_(W1.T)
+    model.output.weight.copy_(W2.T)
+    model.hidden.bias.zero_()
+    model.output.bias.zero_()
+optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
 print(
     f"{n_features} pixels -> {args.hidden} hidden -> {n_classes} classes = "
-    f"{sum(p.numel() for p in params)} weights"
+    f"{sum(p.numel() for p in model.parameters())} weights"
 )
-
-
-def model(x):
-    hidden = (x @ W1 + b1).clamp(min=0)  # ReLU: negatives become 0
-    return hidden @ W2 + b2
 
 
 def evaluate(x, y):
