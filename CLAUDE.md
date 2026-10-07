@@ -14,7 +14,7 @@ Before doing anything, explain what you are about to do and why.
 4. For every tool or library, say what job it does and why it was picked over the obvious alternative.
 5. After a training or evaluation run, explain what the numbers mean and whether they are good.
 6. This section overrides "skip preamble" and "no trailing summaries" below for ML concepts and decisions. Routine steps (installs, lint fixes, commits) stay terse.
-7. Define acronyms
+7. Define acronyms at all times
 
 ## How Claude Code must use this file
 
