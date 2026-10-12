@@ -1,3 +1,5 @@
+import logging
+
 import torch
 from PIL import Image
 
@@ -21,13 +23,14 @@ def test_predict_gives_nine_probabilities_that_sum_to_one(tmp_path):
     torch.testing.assert_close(probabilities.sum(), torch.tensor(1.0))
 
 
-def test_ask_prints_top_tissue_and_runners_up(tmp_path, capsys):
+def test_ask_reports_top_tissue_and_runners_up(tmp_path, caplog):
+    caplog.set_level(logging.INFO)
     make_checkpoint(tmp_path / "model.pt")
     Image.new("RGB", (50, 40), (90, 60, 140)).save(tmp_path / "tile.png")
 
     main(["ask", str(tmp_path / "tile.png"), "--model", str(tmp_path / "model.pt")])
 
-    lines = capsys.readouterr().out.splitlines()
+    lines = caplog.messages
     assert len(lines) == 3
     assert "confident" in lines[0]
     assert any(tissue in lines[0] for tissue in TISSUES)
