@@ -1,7 +1,7 @@
 """Stage 3: a small CNN on PathMNIST, built from nn.Conv2d, nn.MaxPool2d, and nn.Linear.
 
 Run: uv run python scripts/stage3_cnn.py [--lr 0.1] [--epochs 15] [--batch-size 128] [--clip 5.0]
-                                         [--device mps] [--save models/stage3_cnn.pt]
+                                         [--augment] [--device mps] [--save models/stage3_cnn.pt]
 """
 
 import argparse
@@ -12,6 +12,7 @@ from pathlib import Path
 import torch
 from medmnist import PathMNIST
 
+from histostate.augment import flip_rotate
 from histostate.cnn import CNN
 from histostate.softmax import cross_entropy
 
@@ -20,12 +21,15 @@ parser.add_argument("--lr", type=float, default=0.1)
 parser.add_argument("--epochs", type=int, default=15)
 parser.add_argument("--batch-size", type=int, default=128)
 parser.add_argument("--clip", type=float, default=5.0)
+parser.add_argument("--augment", action="store_true", help="random flips and quarter turns")
 parser.add_argument("--device", default="mps", choices=["cpu", "mps"])
 parser.add_argument("--save", type=Path, default=Path("models/stage3_cnn.pt"))
 args = parser.parse_args()
 
 torch.manual_seed(0)
 device = torch.device(args.device)
+# Augmentation draws from its own generator so batch order matches a run without --augment.
+augment_generator = torch.Generator(device=device).manual_seed(1)
 
 train = PathMNIST(split="train", download=True)
 val = PathMNIST(split="val", download=True)
@@ -73,7 +77,10 @@ for epoch in range(1, args.epochs + 1):
     order = torch.randperm(len(x_train), device=device)
     for i in range(0, len(order), args.batch_size):
         batch = order[i : i + args.batch_size]
-        loss = cross_entropy(model(x_train[batch]), y_train[batch])
+        x = x_train[batch]
+        if args.augment:
+            x = flip_rotate(x, augment_generator)  # training batches only, never validation
+        loss = cross_entropy(model(x), y_train[batch])
         loss.backward()
         # Typical gradient size is about 2.5; rare spikes of 15-25 knocked training off course.
         # Shrink any gradient longer than --clip to that length, keeping its direction.
