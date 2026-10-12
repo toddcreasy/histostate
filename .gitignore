@@ -21,3 +21,6 @@ dist/
 
 # Local notes
 TODO.md
+
+# Trained model files (recreate with the stage scripts)
+models/
