@@ -1,4 +1,6 @@
 import argparse
+import logging
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -8,6 +10,8 @@ from PIL import Image
 
 from histostate.cnn import CNN
 from histostate.softmax import softmax
+
+logger = logging.getLogger(__name__)
 
 TISSUES = list(INFO["pathmnist"]["label"].values())
 
@@ -36,6 +40,7 @@ def main(argv: list[str] | None = None) -> None:
     ask.add_argument("--model", type=Path, default=Path("models/stage3_cnn.pt"))
     ask.add_argument("--top", type=int, default=3)
     args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
 
     if not args.image.is_file():
         parser.error(f"image not found: {args.image}")
@@ -44,7 +49,6 @@ def main(argv: list[str] | None = None) -> None:
 
     probabilities = predict(args.image, args.model)
     ranked = probabilities.argsort(descending=True)[: args.top]
-    # This is the command's answer, not a log message, so it goes to stdout.
-    print(f"{TISSUES[ranked[0]]} ({probabilities[ranked[0]]:.0%} confident)")
+    logger.info("%s (%.0f%% confident)", TISSUES[ranked[0]], 100 * probabilities[ranked[0]])
     for i in ranked[1:]:
-        print(f"  then {TISSUES[i]:<38} {probabilities[i]:.0%}")
+        logger.info("  then %-38s %.0f%%", TISSUES[i], 100 * probabilities[i])
