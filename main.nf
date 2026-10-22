@@ -6,7 +6,7 @@
 params.jitters = '0.3'
 params.seeds = '0'
 params.epochs = 60
-params.size = 28
+params.size = 64
 params.blocks = ''
 params.device = 'cpu'
 params.outdir = 'results'

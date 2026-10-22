@@ -18,12 +18,14 @@ TISSUES = list(INFO["pathmnist"]["label"].values())
 
 def predict(image_path: Path, model_path: Path) -> torch.Tensor:
     checkpoint = torch.load(model_path, map_location="cpu")
-    model = CNN(len(TISSUES))
+    # Checkpoints from before --size existed are 28-pixel models.
+    size = checkpoint.get("size", 28)
+    model = CNN(len(TISSUES), size, checkpoint.get("blocks"))
     model.load_state_dict(checkpoint["weights"])
     model.eval()
 
-    # PathMNIST tiles were shrunk from 224x224 to 28x28; the model has only ever seen 28x28.
-    image = Image.open(image_path).convert("RGB").resize((28, 28), Image.Resampling.BICUBIC)
+    # PathMNIST tiles were shrunk from 224x224; the model has only ever seen tiles of its own size.
+    image = Image.open(image_path).convert("RGB").resize((size, size), Image.Resampling.BICUBIC)
     # Same scaling as training: 0-1, then the training set's mean and spread, then channels first.
     x = torch.from_numpy(np.array(image)).float() / 255
     x = ((x - checkpoint["mean"].cpu()) / checkpoint["std"].cpu()).permute(2, 0, 1)

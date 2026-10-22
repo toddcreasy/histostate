@@ -27,14 +27,16 @@ n_classes = 9
 codes = ["ADI", "BACK", "DEB", "LYM", "MUC", "MUS", "NORM", "STR", "TUM"]
 
 checkpoint = torch.load(args.model, map_location=device)
-model = CNN(n_classes).to(device)
+# Checkpoints from before --size existed are 28-pixel models.
+size = checkpoint.get("size", 28)
+model = CNN(n_classes, size, checkpoint.get("blocks")).to(device)
 model.load_state_dict(checkpoint["weights"])
 model.eval()
 mean, std = checkpoint["mean"].cpu(), checkpoint["std"].cpu()
 
 
 def load(split):
-    data = PathMNIST(split=split, download=True)
+    data = PathMNIST(split=split, download=True, size=None if size == 28 else size)
     # Same scaling as training, using the training set's mean and spread saved with the model.
     x = (torch.from_numpy(data.imgs).float() / 255 - mean) / std
     x = x.permute(0, 3, 1, 2).contiguous().to(device)
