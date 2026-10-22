@@ -1,7 +1,7 @@
 """Stage 3: a small CNN on PathMNIST, built from nn.Conv2d, nn.MaxPool2d, and nn.Linear.
 
 Run: uv run python scripts/stage3_cnn.py [--lr 0.1] [--epochs 60] [--batch-size 128] [--clip 5.0]
-                                         [--no-augment] [--jitter 0.0] [--seed 0]
+                                         [--no-augment] [--jitter 0.3] [--seed 0]
                                          [--device mps|cuda|cpu] [--save models/stage3_cnn.pt]
 """
 
@@ -29,7 +29,7 @@ parser.add_argument(
     default=True,
     help="random flips and quarter turns",
 )
-parser.add_argument("--jitter", type=float, default=0.0, help="color jitter strength, 0 = off")
+parser.add_argument("--jitter", type=float, default=0.3, help="color jitter strength, 0 = off")
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--device", default="mps", choices=["cpu", "mps", "cuda"])
 parser.add_argument("--save", type=Path, default=Path("models/stage3_cnn.pt"))
