@@ -1,8 +1,8 @@
 """Stage 3: a small CNN on PathMNIST, built from nn.Conv2d, nn.MaxPool2d, and nn.Linear.
 
 Run: uv run python scripts/stage3_cnn.py [--lr 0.1] [--epochs 60] [--batch-size 128] [--clip 5.0]
-                                         [--no-augment] [--jitter 0.0] [--seed 0] [--device mps]
-                                         [--save models/stage3_cnn.pt]
+                                         [--no-augment] [--jitter 0.0] [--seed 0]
+                                         [--device mps|cuda|cpu] [--save models/stage3_cnn.pt]
 """
 
 import argparse
@@ -31,7 +31,7 @@ parser.add_argument(
 )
 parser.add_argument("--jitter", type=float, default=0.0, help="color jitter strength, 0 = off")
 parser.add_argument("--seed", type=int, default=0)
-parser.add_argument("--device", default="mps", choices=["cpu", "mps"])
+parser.add_argument("--device", default="mps", choices=["cpu", "mps", "cuda"])
 parser.add_argument("--save", type=Path, default=Path("models/stage3_cnn.pt"))
 args = parser.parse_args()
 
@@ -109,6 +109,8 @@ for epoch in range(1, args.epochs + 1):
     scheduler.step()
     if device.type == "mps":
         torch.mps.synchronize()  # GPU work runs asynchronously; wait so the timing is real
+    elif device.type == "cuda":
+        torch.cuda.synchronize()
     elapsed = time.perf_counter() - start
 
     # Train metrics use the end-of-epoch weights so they compare fairly with validation.

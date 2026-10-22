@@ -1,0 +1,77 @@
+# infra/aws
+
+CDK (AWS Cloud Development Kit, Python) app that provisions the AWS Batch infrastructure the
+`aws` profile in `nextflow.config` expects: an S3 (Simple Storage Service) bucket for the work
+dir and results, a VPC (virtual private cloud) with no NAT (network address translation)
+gateway, and two Batch job queues, `histostate-spot` and `histostate-ondemand`. Both run on
+single-GPU instances (`g4dn.xlarge`, `g5.xlarge`) with the ECS (Elastic Container Service)
+GPU-optimized AMI (Amazon Machine Image), which ships the NVIDIA driver.
+
+Copied from methyl-floor-infra; the differences are the GPU instance types and AMI, a 16 vCPU
+(virtual CPU) ceiling, and a 100 GB root volume.
+
+It is its own uv project so CDK's dependencies stay out of the histostate package.
+
+## Prereqs
+
+- Node.js and the AWS CDK CLI 2.1146.0 or newer (`npm install -g aws-cdk`, or
+  `npx aws-cdk@2.1146.0`); older CLIs cannot read what `aws-cdk-lib` 2.274 synthesizes
+- AWS credentials for the target account (`aws sso login` or `AWS_PROFILE`)
+- The account and region bootstrapped once: `uv run cdk bootstrap aws://<account-id>/<region>`
+- EC2 (Elastic Compute Cloud) quota for G instances. Batch cannot launch a GPU instance while
+  "All G and VT Spot Instance Requests" (Spot) or "Running On-Demand G and VT instances"
+  (on-demand) is 0. Check with
+  `aws service-quotas get-service-quota --service-code ec2 --quota-code L-3819A6DF`
+  (on-demand: `L-DB2E81BA`).
+
+## Deploy
+
+```bash
+cd infra/aws
+uv sync
+uv run pytest
+uv run cdk deploy
+```
+
+Context defaults (override with `cdk deploy -c max_vcpus=32`):
+
+- `max_vcpus` (default `16`): ceiling for each compute environment; keep it at or below the G quota
+- `root_volume_gb` (default `100`): root EBS (Elastic Block Store) volume on Batch instances
+
+## Wire it into the repo
+
+Copy the `EnvSnippet` output into the repo root `.env`, then add `HISTOSTATE_IMAGE`. The image
+lives in an ECR (Elastic Container Registry) repository named `histostate`, created once
+outside this stack:
+
+```bash
+aws ecr create-repository --repository-name histostate \
+  --image-scanning-configuration scanOnPush=true
+```
+
+Build and push from the repo root. Batch instances are x86_64, so build for `linux/amd64` even
+on Apple Silicon; tag with the git commit so each run records which code it trained.
+
+```bash
+set -a; source .env; set +a
+REGISTRY=<account-id>.dkr.ecr.$AWS_REGION.amazonaws.com
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REGISTRY
+docker buildx build --platform linux/amd64 -t $REGISTRY/histostate:$(git rev-parse --short HEAD) --push .
+```
+
+For a run that can't tolerate Spot reclamation, set `AWS_BATCH_QUEUE=histostate-ondemand`.
+
+## Teardown
+
+```bash
+uv run cdk destroy
+```
+
+The S3 bucket has `RemovalPolicy.RETAIN`, so it survives `cdk destroy` and has to be deleted
+by hand.
+
+## Cost
+
+Idle cost is close to zero: no NAT gateway, and both compute environments have `minvCpus=0`,
+so no instances run between jobs. The ongoing cost is S3 storage under `results/` (`work/`
+expires after 30 days) and the image in ECR. Compute is billed only while jobs run.
