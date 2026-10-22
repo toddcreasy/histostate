@@ -23,3 +23,10 @@ def test_max_pool_keeps_largest_of_each_2x2_block():
 
 def test_cnn_gives_nine_scores_per_image():
     assert CNN(n_classes=9)(torch.randn(4, 3, 28, 28)).shape == (4, 9)
+
+
+def test_64_pixel_cnn_adds_a_block_and_gives_nine_scores():
+    model = CNN(n_classes=9, size=64)
+    assert model(torch.randn(2, 3, 64, 64)).shape == (2, 9)
+    assert model.output.in_features == 64 * 8 * 8
+    assert CNN(n_classes=9).conv3 is None
