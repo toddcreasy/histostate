@@ -2,8 +2,8 @@
 
 CDK (AWS Cloud Development Kit, Python) app that provisions the AWS Batch infrastructure the
 `aws` profile in `nextflow.config` expects: an S3 (Simple Storage Service) bucket for the work
-dir and results, a VPC (virtual private cloud) with no NAT (network address translation)
-gateway, and three Batch job queues:
+dir and results, a security group in the account's default VPC (virtual private cloud), and
+three Batch job queues:
 
 - `histostate-gpu-spot` and `histostate-gpu-ondemand`: single-GPU instances (`g4dn.xlarge`,
   `g5.xlarge`) on the ECS (Elastic Container Service) GPU-optimized AMI (Amazon Machine Image),
@@ -12,7 +12,8 @@ gateway, and three Batch job queues:
   standard ECS AMI, for training without a GPU. Used by `-profile aws,cpu`.
 
 Copied from methyl-floor-infra; the differences are the GPU queues and AMI, a 16 vCPU (virtual
-CPU) ceiling on them, the smaller CPU queue, and a 100 GB root volume.
+CPU) ceiling on them, the smaller CPU queue, a 100 GB root volume, and the default VPC in place
+of a new one (us-east-1 is at its 5-VPC limit).
 
 It is its own uv project so CDK's dependencies stay out of the histostate package.
 

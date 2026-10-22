@@ -48,25 +48,10 @@ class BatchStack(Stack):
         work_dir = f"s3://{bucket.bucket_name}/work"
         out_dir = f"s3://{bucket.bucket_name}/results"
 
-        # --- Network: public-subnet-only VPC, no NAT ------------------------
-        vpc = ec2.Vpc(
-            self,
-            "Vpc",
-            max_azs=2,
-            nat_gateways=0,
-            subnet_configuration=[
-                ec2.SubnetConfiguration(
-                    name="public",
-                    subnet_type=ec2.SubnetType.PUBLIC,
-                    cidr_mask=24,
-                )
-            ],
-            gateway_endpoints={
-                "S3": ec2.GatewayVpcEndpointOptions(
-                    service=ec2.GatewayVpcEndpointAwsService.S3,
-                )
-            },
-        )
+        # --- Network: the account's default VPC (public subnets, no NAT) ----
+        # The region is at its 5-VPC limit, so this stack uses the default VPC instead of
+        # creating one. Lookup needs an explicit account and region (see app.py).
+        vpc = ec2.Vpc.from_lookup(self, "Vpc", is_default=True)
 
         security_group = ec2.SecurityGroup(
             self,

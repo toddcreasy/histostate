@@ -9,7 +9,9 @@ from stacks.batch_stack import BatchStack
 @pytest.fixture(scope="module")
 def template() -> Template:
     app = cdk.App()
-    stack = BatchStack(app, "TestBatchStack")
+    # Without cached context, the default-VPC lookup returns a placeholder VPC.
+    env = cdk.Environment(account="123456789012", region="us-east-1")
+    stack = BatchStack(app, "TestBatchStack", env=env)
     return Template.from_stack(stack)
 
 
@@ -83,10 +85,9 @@ def test_no_nat_gateway(template: Template) -> None:
     template.resource_count_is("AWS::EC2::NatGateway", 0)
 
 
-def test_two_public_subnets(template: Template) -> None:
-    template.resource_count_is("AWS::EC2::Subnet", 2)
-    for subnet in template.find_resources("AWS::EC2::Subnet").values():
-        assert subnet["Properties"]["MapPublicIpOnLaunch"] is True
+def test_uses_existing_vpc(template: Template) -> None:
+    template.resource_count_is("AWS::EC2::VPC", 0)
+    template.resource_count_is("AWS::EC2::Subnet", 0)
 
 
 def test_three_compute_environments_min_zero(template: Template) -> None:
