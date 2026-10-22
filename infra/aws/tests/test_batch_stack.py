@@ -89,8 +89,8 @@ def test_two_public_subnets(template: Template) -> None:
         assert subnet["Properties"]["MapPublicIpOnLaunch"] is True
 
 
-def test_two_compute_environments_min_zero(template: Template) -> None:
-    template.resource_count_is("AWS::Batch::ComputeEnvironment", 2)
+def test_three_compute_environments_min_zero(template: Template) -> None:
+    template.resource_count_is("AWS::Batch::ComputeEnvironment", 3)
     template.has_resource_properties(
         "AWS::Batch::ComputeEnvironment",
         {"ComputeResources": Match.object_like({"MinvCpus": 0, "Type": "SPOT"})},
@@ -101,21 +101,20 @@ def test_two_compute_environments_min_zero(template: Template) -> None:
     )
 
 
-def test_two_job_queues(template: Template) -> None:
-    template.resource_count_is("AWS::Batch::JobQueue", 2)
-    template.has_resource_properties("AWS::Batch::JobQueue", {"JobQueueName": "histostate-spot"})
-    template.has_resource_properties(
-        "AWS::Batch::JobQueue", {"JobQueueName": "histostate-ondemand"}
-    )
+def test_three_job_queues(template: Template) -> None:
+    template.resource_count_is("AWS::Batch::JobQueue", 3)
+    for name in ("histostate-gpu-spot", "histostate-gpu-ondemand", "histostate-cpu-spot"):
+        template.has_resource_properties("AWS::Batch::JobQueue", {"JobQueueName": name})
 
 
-def test_launch_template_installs_miniconda(template: Template) -> None:
+def test_launch_templates_install_miniconda(template: Template) -> None:
     launch_templates = template.find_resources("AWS::EC2::LaunchTemplate")
-    assert len(launch_templates) == 1
-    user_data_json = json.dumps(next(iter(launch_templates.values())))
-    assert "miniconda" in user_data_json
-    assert "conda install" in user_data_json
-    assert "awscli" in user_data_json
+    assert len(launch_templates) == 2
+    for launch_template in launch_templates.values():
+        user_data_json = json.dumps(launch_template)
+        assert "miniconda" in user_data_json
+        assert "conda install" in user_data_json
+        assert "awscli" in user_data_json
 
 
 def test_root_volume_is_encrypted_gp3(template: Template) -> None:
@@ -141,29 +140,51 @@ def test_root_volume_is_encrypted_gp3(template: Template) -> None:
 
 def test_outputs_present(template: Template) -> None:
     outputs = template.to_json().get("Outputs", {})
-    for name in ("BucketName", "WorkDir", "OutDir", "SpotQueue", "OnDemandQueue", "Region"):
+    for name in (
+        "BucketName",
+        "WorkDir",
+        "OutDir",
+        "SpotQueue",
+        "OnDemandQueue",
+        "CpuSpotQueue",
+        "Region",
+    ):
         assert name in outputs
 
 
 def test_compute_environments_track_latest_launch_template_version(template: Template) -> None:
     envs = template.find_resources("AWS::Batch::ComputeEnvironment")
-    assert len(envs) == 2
+    assert len(envs) == 3
     for env in envs.values():
         version = env["Properties"]["ComputeResources"]["LaunchTemplate"]["Version"]
         assert version["Fn::GetAtt"][1] == "LatestVersionNumber"
 
 
-def test_gpu_instance_types_only(template: Template) -> None:
+def _instance_types_to_max_vcpus(template: Template) -> dict[tuple[str, ...], list[int]]:
+    found: dict[tuple[str, ...], list[int]] = {}
     for env in template.find_resources("AWS::Batch::ComputeEnvironment").values():
-        types = env["Properties"]["ComputeResources"]["InstanceTypes"]
-        assert sorted(types) == ["g4dn.xlarge", "g5.xlarge"]
+        resources = env["Properties"]["ComputeResources"]
+        found.setdefault(tuple(sorted(resources["InstanceTypes"])), []).append(
+            resources["MaxvCpus"]
+        )
+    return found
 
 
-def test_vcpu_ceiling_matches_gpu_quota(template: Template) -> None:
-    for env in template.find_resources("AWS::Batch::ComputeEnvironment").values():
-        assert env["Properties"]["ComputeResources"]["MaxvCpus"] == 16
+def test_gpu_and_cpu_instance_types(template: Template) -> None:
+    found = _instance_types_to_max_vcpus(template)
+    assert set(found) == {
+        ("g4dn.xlarge", "g5.xlarge"),
+        ("c6i.2xlarge", "c7i.2xlarge", "m6i.2xlarge"),
+    }
 
 
-def test_launch_template_uses_gpu_ami(template: Template) -> None:
+def test_gpu_vcpu_ceiling_matches_gpu_quota(template: Template) -> None:
+    found = _instance_types_to_max_vcpus(template)
+    assert found[("g4dn.xlarge", "g5.xlarge")] == [16, 16]
+    assert found[("c6i.2xlarge", "c7i.2xlarge", "m6i.2xlarge")] == [64]
+
+
+def test_launch_templates_use_gpu_and_standard_amis(template: Template) -> None:
     parameters = json.dumps(template.to_json().get("Parameters", {}))
     assert "amazon-linux-2023/gpu" in parameters
+    assert "amazon-linux-2023/recommended" in parameters

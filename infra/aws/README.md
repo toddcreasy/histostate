@@ -3,12 +3,16 @@
 CDK (AWS Cloud Development Kit, Python) app that provisions the AWS Batch infrastructure the
 `aws` profile in `nextflow.config` expects: an S3 (Simple Storage Service) bucket for the work
 dir and results, a VPC (virtual private cloud) with no NAT (network address translation)
-gateway, and two Batch job queues, `histostate-spot` and `histostate-ondemand`. Both run on
-single-GPU instances (`g4dn.xlarge`, `g5.xlarge`) with the ECS (Elastic Container Service)
-GPU-optimized AMI (Amazon Machine Image), which ships the NVIDIA driver.
+gateway, and three Batch job queues:
 
-Copied from methyl-floor-infra; the differences are the GPU instance types and AMI, a 16 vCPU
-(virtual CPU) ceiling, and a 100 GB root volume.
+- `histostate-gpu-spot` and `histostate-gpu-ondemand`: single-GPU instances (`g4dn.xlarge`,
+  `g5.xlarge`) on the ECS (Elastic Container Service) GPU-optimized AMI (Amazon Machine Image),
+  which ships the NVIDIA driver. Used by `-profile aws,gpu`.
+- `histostate-cpu-spot`: 8 vCPU instances (`c6i.2xlarge`, `c7i.2xlarge`, `m6i.2xlarge`) on the
+  standard ECS AMI, for training without a GPU. Used by `-profile aws,cpu`.
+
+Copied from methyl-floor-infra; the differences are the GPU queues and AMI, a 16 vCPU (virtual
+CPU) ceiling on them, the smaller CPU queue, and a 100 GB root volume.
 
 It is its own uv project so CDK's dependencies stay out of the histostate package.
 
@@ -35,7 +39,9 @@ uv run cdk deploy
 
 Context defaults (override with `cdk deploy -c max_vcpus=32`):
 
-- `max_vcpus` (default `16`): ceiling for each compute environment; keep it at or below the G quota
+- `max_vcpus` (default `16`): ceiling for each GPU compute environment; keep it at or below
+  the G quota
+- `cpu_max_vcpus` (default `64`): ceiling for the CPU compute environment
 - `root_volume_gb` (default `100`): root EBS (Elastic Block Store) volume on Batch instances
 
 ## Wire it into the repo
@@ -59,7 +65,8 @@ aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --
 docker buildx build --platform linux/amd64 -t $REGISTRY/histostate:$(git rev-parse --short HEAD) --push .
 ```
 
-For a run that can't tolerate Spot reclamation, set `AWS_BATCH_QUEUE=histostate-ondemand`.
+For a GPU run that can't tolerate Spot reclamation, set
+`AWS_BATCH_GPU_QUEUE=histostate-gpu-ondemand`.
 
 ## Teardown
 
@@ -72,6 +79,6 @@ by hand.
 
 ## Cost
 
-Idle cost is close to zero: no NAT gateway, and both compute environments have `minvCpus=0`,
+Idle cost is close to zero: no NAT gateway, and all compute environments have `minvCpus=0`,
 so no instances run between jobs. The ongoing cost is S3 storage under `results/` (`work/`
 expires after 30 days) and the image in ECR. Compute is billed only while jobs run.
