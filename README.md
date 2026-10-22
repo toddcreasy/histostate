@@ -1,36 +1,40 @@
 # histostate
 
-Predict glioblastoma cell-state composition (MES-like, AC-like, OPC-like,
-NPC-like) from routine H&E slides, using pathology foundation models.
+Name the tissue type in a colorectal H&E (hematoxylin and eosin) image with a small CNN
+(convolutional neural network) built and trained from scratch in PyTorch. No pretrained weights,
+no trainer libraries: the point is to learn every piece, from gradient descent up.
 
-## Approach
-
-1. Tile TCGA-GBM diagnostic slides and embed each tile with a frozen
-   foundation model (Owkin Phikon-v2).
-2. Derive per-patient cell-state fractions by deconvolving matched bulk
-   RNA-seq with Neftel et al. (2019) signatures.
-3. Train an attention-based multiple instance learning (MIL) head to regress
-   those fractions from the slide.
-4. Use attention maps to show where each state sits on the slide, and check
-   them against public GBM spatial transcriptomics.
-
-## Layout
-
-```
-src/histostate/     package code
-tests/              pytest tests, no network by default
-scripts/            one-shot scripts, never imported
-docs/               long-form docs
+```bash
+uv run histostate ask tile.png
 ```
 
-## Roadmap
+## Data
 
-- [ ] Step 1: linear probe on NCT-CRC-HE
-- [ ] Step 2: attention MIL on Camelyon16 features
-- [ ] Step 3: tile and embed TCGA-GBM slides
-- [ ] Step 4: cell-state labels from bulk RNA-seq deconvolution
-- [ ] Step 5: MIL regression of cell-state fractions
-- [ ] Step 6: LoRA fine-tuning of the backbone with `peft`
+[PathMNIST](https://medmnist.com/) from MedMNIST: about 107,000 colorectal H&E tiles at 28x28
+pixels, 9 tissue classes (adipose, background, debris, lymphocytes, mucus, smooth muscle, normal
+mucosa, stroma, tumor). It downloads on first use.
+
+The official test set comes from a separate set of slides (CRC-VAL-HE-7K) than train and
+validation, so it shows a color and staining shift. `src/histostate/splits.py` cuts it into two
+stratified halves: shifted validation, used for tuning, and final test, scored once.
+
+## Stages
+
+Each stage is one script in `scripts/`, building on the last.
+
+| Stage | Script | Validation accuracy |
+|---|---|---|
+| Warm-up: fit a line with hand-written gradient descent | `warmup_fit_line.py` | n/a |
+| 1: logistic regression on pixels | `stage1_logreg.py` | about 47% |
+| 2: MLP (multilayer perceptron) | `stage2_mlp.py` | about 66% |
+| 3: CNN, 47,625 weights | `stage3_cnn.py` | 95.1% |
+
+Stage 3 trains with SGD (stochastic gradient descent), gradient clipping, cosine learning-rate
+decay, flip and rotate augmentation, and color jitter (0.3). It keeps the epoch with the best
+validation accuracy.
+
+Final model: 90.3% on shifted validation and 91.4% on final test (scored once, 2026-10-22,
+`scripts/evaluate_test.py`). Stroma (63% recall) and smooth muscle (76%) are its main confusion.
 
 ## Setup
 
@@ -39,9 +43,10 @@ Requires [uv](https://docs.astral.sh/uv/).
 ```bash
 uv sync
 uv run pytest
+uv run python scripts/stage3_cnn.py --save models/stage3_cnn.pt
 ```
 
-Runs on CUDA, Apple Silicon (MPS), or CPU.
+Runs on CUDA, Apple Silicon (MPS, Metal Performance Shaders), or CPU; pick with `--device`.
 
 ## Train on AWS
 
@@ -59,7 +64,12 @@ nextflow run main.nf -profile aws,gpu --jitters 0.3,0.5 --seeds 1,2
 Checkpoints and logs land in `$AWS_S3_OUTDIR/stage3/`; `pipeline_info/trace.tsv` there records
 time and peak memory per run.
 
-## Model licenses
+## Layout
 
-Phikon-v2 uses a custom Owkin license, not a standard open-source one. Read
-the model card terms before any commercial use.
+```
+src/histostate/     model, augmentation, splits, and the ask command
+tests/              pytest tests, no network by default
+scripts/            one training or evaluation script per stage
+infra/aws/          CDK stack for AWS Batch
+docs/               long-form docs
+```
