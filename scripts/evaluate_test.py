@@ -1,7 +1,8 @@
-"""Score a saved Stage 3 CNN on validation and on the held-out test set, side by side.
+"""Score a saved Stage 3 CNN on validation and on the final test half, side by side.
 
-The test set (CRC-VAL-HE-7K) comes from patients the model never trained on. Look at it once,
-after all tuning is done; tuning against it turns it into a second validation set.
+The test set (CRC-VAL-HE-7K) comes from patients the model never trained on. It is split in half
+(histostate.splits): shifted validation for tuning, and this final test half. Look at the final
+half once, after all tuning is done; tuning against it turns it into another validation set.
 
 Run: uv run python scripts/evaluate_test.py [--model models/stage3_cnn.pt] [--device mps]
 """
@@ -14,6 +15,7 @@ from medmnist import PathMNIST
 
 from histostate.cnn import CNN
 from histostate.softmax import cross_entropy
+from histostate.splits import split_test
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", type=Path, default=Path("models/stage3_cnn.pt"))
@@ -37,6 +39,9 @@ def load(split):
     x = (torch.from_numpy(data.imgs).float() / 255 - mean) / std
     x = x.permute(0, 3, 1, 2).contiguous().to(device)
     y = torch.from_numpy(data.labels).long().squeeze(1).to(device)
+    if split == "test":
+        _, final_idx = split_test(y.cpu())
+        return x[final_idx.to(device)], y[final_idx.to(device)]
     return x, y
 
 
@@ -70,7 +75,7 @@ for split, confusion in results.items():
 confusion = results["test"]
 recall = confusion.diag() / confusion.sum(dim=1)
 precision = confusion.diag() / confusion.sum(dim=0)
-print("\nconfusion matrix (test), rows = true, columns = predicted")
+print("\nconfusion matrix (final test half), rows = true, columns = predicted")
 print("true\\pred " + "".join(f"{c:>6}" for c in codes) + "  recall")
 for i, code in enumerate(codes):
     row = "".join(f"{n:>6}" for n in confusion[i].tolist())
