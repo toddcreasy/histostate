@@ -43,6 +43,22 @@ uv run pytest
 
 Runs on CUDA, Apple Silicon (MPS), or CPU.
 
+## Train on AWS
+
+`main.nf` runs Stage 3 training on AWS Batch, one job per jitter and seed pair, on GPU
+instances (`-profile aws,gpu`) or CPU instances (`-profile aws,cpu`).
+Requires Nextflow >= 26.04, AWS credentials, the stack in `infra/aws` deployed, and the image
+pushed to ECR (Elastic Container Registry); `infra/aws/README.md` covers both. Copy
+`.env.example` to `.env` and fill it in.
+
+```bash
+set -a; source .env; set +a
+nextflow run main.nf -profile aws,gpu --jitters 0.3,0.5 --seeds 1,2
+```
+
+Checkpoints and logs land in `$AWS_S3_OUTDIR/stage3/`; `pipeline_info/trace.tsv` there records
+time and peak memory per run.
+
 ## Model licenses
 
 Phikon-v2 uses a custom Owkin license, not a standard open-source one. Read
