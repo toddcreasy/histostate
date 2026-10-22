@@ -2,7 +2,8 @@
 
 Run: uv run python scripts/stage3_cnn.py [--lr 0.1] [--epochs 60] [--batch-size 128] [--clip 5.0]
                                          [--no-augment] [--jitter 0.3] [--seed 0]
-                                         [--device mps|cuda|cpu] [--save models/stage3_cnn.pt]
+                                         [--size 28|64] [--blocks 2|3] [--device mps|cuda|cpu]
+                                         [--save models/stage3_cnn.pt]
 """
 
 import argparse
@@ -31,6 +32,8 @@ parser.add_argument(
 )
 parser.add_argument("--jitter", type=float, default=0.3, help="color jitter strength, 0 = off")
 parser.add_argument("--seed", type=int, default=0)
+parser.add_argument("--size", type=int, default=28, choices=[28, 64], help="tile width in pixels")
+parser.add_argument("--blocks", type=int, choices=[2, 3], help="conv blocks; default 2, or 3 at 64")
 parser.add_argument("--device", default="mps", choices=["cpu", "mps", "cuda"])
 parser.add_argument("--save", type=Path, default=Path("models/stage3_cnn.pt"))
 args = parser.parse_args()
@@ -41,32 +44,38 @@ device = torch.device(args.device)
 augment_generator = torch.Generator(device=device).manual_seed(args.seed + 1)
 jitter_generator = torch.Generator(device=device).manual_seed(args.seed + 2)
 
-train = PathMNIST(split="train", download=True)
-val = PathMNIST(split="val", download=True)
-test = PathMNIST(split="test", download=True)
+size = None if args.size == 28 else args.size  # MedMNIST's original files are 28 pixels
+train = PathMNIST(split="train", download=True, size=size)
+val = PathMNIST(split="val", download=True, size=size)
+test = PathMNIST(split="test", download=True, size=size)
 
-# uint8 0-255, shape (N, 28, 28, 3) -> float 0-1
-x_train = torch.from_numpy(train.imgs).float() / 255
-x_val = torch.from_numpy(val.imgs).float() / 255
+
+def to_float(imgs):
+    # uint8 0-255, shape (N, H, W, 3) -> float 0-1, shape (N, 3, H, W): conv layers want channels
+    # first. One float copy only; at 64 pixels the training set alone is 4.4 GB as floats.
+    return torch.from_numpy(imgs).permute(0, 3, 1, 2).contiguous().float().div_(255)
+
+
+x_train = to_float(train.imgs)
+x_val = to_float(val.imgs)
 y_train = torch.from_numpy(train.labels).long().squeeze(1)
 y_val = torch.from_numpy(val.labels).long().squeeze(1)
 # Shifted validation: half of the test patients' tiles. Tune on this; the other half is final test.
 y_test = torch.from_numpy(test.labels).long().squeeze(1)
 shift_idx, _ = split_test(y_test)
-x_shift = torch.from_numpy(test.imgs).float()[shift_idx] / 255
+x_shift = to_float(test.imgs[shift_idx.numpy()])
 y_shift = y_test[shift_idx]
 
-# Per-channel mean and spread from the training set only, applied to both splits.
-# Conv layers want (N, channels, height, width), so move channels first instead of flattening.
-mean = x_train.mean(dim=(0, 1, 2))
-std = x_train.std(dim=(0, 1, 2))
-x_train = ((x_train - mean) / std).permute(0, 3, 1, 2).contiguous().to(device)
-x_val = ((x_val - mean) / std).permute(0, 3, 1, 2).contiguous().to(device)
-x_shift = ((x_shift - mean) / std).permute(0, 3, 1, 2).contiguous().to(device)
+# Per-channel mean and spread from the training set only, applied to every split in place.
+mean = torch.stack([x_train[:, c].mean() for c in range(3)])
+std = torch.stack([x_train[:, c].std() for c in range(3)])
+for x in (x_train, x_val, x_shift):
+    x.sub_(mean[:, None, None]).div_(std[:, None, None])
+x_train, x_val, x_shift = x_train.to(device), x_val.to(device), x_shift.to(device)
 y_train, y_val, y_shift = y_train.to(device), y_val.to(device), y_shift.to(device)
 
 n_classes = 9
-model = CNN(n_classes).to(device)
+model = CNN(n_classes, args.size, args.blocks).to(device)
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
 # Cosine decay: the learning rate follows a smooth curve from --lr down to near 0 by the last epoch.
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
@@ -131,7 +140,10 @@ for epoch in range(1, args.epochs + 1):
 model.load_state_dict(best_weights)
 args.save.parent.mkdir(parents=True, exist_ok=True)
 # Save the normalization too: new images must be scaled exactly like the training images.
-torch.save({"weights": best_weights, "mean": mean, "std": std}, args.save)
+torch.save(
+    {"weights": best_weights, "mean": mean, "std": std, "size": args.size, "blocks": args.blocks},
+    args.save,
+)
 print(f"\nbest: epoch {best_epoch}, val acc {best_val_acc:.1%}, saved to {args.save}")
 shift_loss, shift_acc = evaluate(x_shift, y_shift)
 print(f"shifted validation for that model: loss {shift_loss:.4f}, acc {shift_acc:.1%}")

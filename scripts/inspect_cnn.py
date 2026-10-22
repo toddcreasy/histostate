@@ -2,12 +2,14 @@
 
 Writes PNGs to --out:
 - conv1_filters.png: the 32 learned 3x3 color filters, enlarged
-- tile_<name>.png: one shifted-validation tile, then its 32 conv1 maps, then its 64 conv2 maps
+- tile_<name>.png: one shifted-validation tile, then its 32 conv1 maps, then the 64 maps of
+  its last conv layer
   (brighter = filter fired harder); one stroma and one muscle tile the model got right, and one
   stroma tile it called muscle
 - channel<N>_top20.png: the 20 tiles that make the strongest stroma/muscle separator fire hardest
-Prints the conv2 channels whose average response differs most between stroma and muscle, and for
-the strongest one, how it behaves on stroma tiles the model got wrong and how it tracks color.
+Prints the last conv layer's channels whose average response differs most between stroma and
+muscle, and for the strongest one, how it behaves on stroma tiles the model got wrong and how it
+tracks color.
 
 Run: uv run python scripts/inspect_cnn.py [--model models/stage3_cnn.pt] [--out models/inspect]
 """
@@ -31,7 +33,9 @@ args.out.mkdir(parents=True, exist_ok=True)
 
 MUS, STR = 5, 7
 checkpoint = torch.load(args.model, map_location="cpu")
-model = CNN(9)
+# Checkpoints from before --size and --blocks existed are 28-pixel, 2-block models.
+size = checkpoint.get("size", 28)
+model = CNN(9, size, checkpoint.get("blocks"))
 model.load_state_dict(checkpoint["weights"])
 model.eval()
 
@@ -61,7 +65,7 @@ filters = model.conv1.weight.detach()
 grid(filters, columns=8, scale=12).save(args.out / "conv1_filters.png")
 print(f"conv1: {tuple(filters.shape)} weights, saved {args.out / 'conv1_filters.png'}")
 
-test = PathMNIST(split="test", download=True)
+test = PathMNIST(split="test", download=True, size=None if size == 28 else size)
 y_test = torch.from_numpy(test.labels).long().squeeze(1)
 shift_idx, _ = split_test(y_test)
 raw = torch.from_numpy(test.imgs)[shift_idx]
@@ -69,8 +73,10 @@ y = y_test[shift_idx]
 x = ((raw.float() / 255 - checkpoint["mean"]) / checkpoint["std"]).permute(0, 3, 1, 2)
 
 with torch.no_grad():
-    a1 = torch.relu(model.conv1(x))  # (N, 32, 28, 28)
-    a2 = torch.relu(model.conv2(model.pool(a1)))  # (N, 64, 14, 14)
+    a1 = torch.relu(model.conv1(x))  # (N, 32, size, size)
+    a2 = torch.relu(model.conv2(model.pool(a1)))  # (N, 64, size / 2, size / 2)
+    if model.conv3 is not None:
+        a2 = torch.relu(model.conv3(model.pool(a2)))  # (N, 64, size / 4, size / 4)
     predicted = model(x).argmax(dim=1)
 
 picks = {
@@ -80,7 +86,8 @@ picks = {
 }
 for name, i in picks.items():
     tile = Image.fromarray(raw[i].numpy()).resize((224, 224), Image.Resampling.NEAREST)
-    maps1, maps2 = grid(a1[i], 8, 3), grid(a2[i], 8, 3)
+    scale = 84 // size  # 3 at 28 pixels, 1 at 64
+    maps1, maps2 = grid(a1[i], 8, scale), grid(a2[i], 8, 3 * scale)
     sheet = Image.new(
         "RGB", (max(224, maps1.width, maps2.width), 224 + maps1.height + maps2.height + 20), "white"
     )
@@ -90,11 +97,11 @@ for name, i in picks.items():
     sheet.save(args.out / f"tile_{name}.png")
     print(f"{name}: shifted-validation tile {i}, saved {args.out / f'tile_{name}.png'}")
 
-# Average each conv2 channel over every stroma and every muscle tile, then rank the gap.
+# Average each last-layer channel over every stroma and every muscle tile, then rank the gap.
 strength = a2.mean(dim=(2, 3))  # (N, 64): how hard each channel fired, averaged over the tile
 stroma, muscle = strength[y == STR].mean(dim=0), strength[y == MUS].mean(dim=0)
 gap = stroma - muscle
-print("\nconv2 channels that separate stroma from muscle (mean response, shifted validation)")
+print("\nlast conv layer channels that separate stroma from muscle (mean response, shift-val)")
 print("channel  stroma  muscle    gap")
 for c in gap.abs().argsort(descending=True)[:8].tolist():
     print(f"{c:>7}  {stroma[c]:>6.3f}  {muscle[c]:>6.3f}  {gap[c]:>+6.3f}")
@@ -105,7 +112,7 @@ codes = ["ADI", "BACK", "DEB", "LYM", "MUC", "MUS", "NORM", "STR", "TUM"]
 channel = gap.abs().argmax().item()
 top = strength[:, channel].argsort(descending=True)[:20]
 tiles = raw[top].permute(0, 3, 1, 2).float()
-grid(tiles, columns=10, scale=4).save(args.out / f"channel{channel}_top20.png")
+grid(tiles, columns=10, scale=112 // size).save(args.out / f"channel{channel}_top20.png")
 print(
     f"\nchannel {channel}: 20 strongest tiles saved to {args.out / f'channel{channel}_top20.png'}"
 )
