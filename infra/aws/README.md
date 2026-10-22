@@ -11,7 +11,7 @@ three Batch job queues:
 - `histostate-cpu-spot`: 8 vCPU instances (`c6i.2xlarge`, `c7i.2xlarge`, `m6i.2xlarge`) on the
   standard ECS AMI, for training without a GPU. Used by `-profile aws,cpu`.
 
-Copied from methyl-floor-infra; the differences are the GPU queues and AMI, a 16 vCPU (virtual
+Copied from methyl-floor-infra; the differences are the GPU queues and AMI, an 8 vCPU (virtual
 CPU) ceiling on them, the smaller CPU queue, a 100 GB root volume, and the default VPC in place
 of a new one (us-east-1 is at its 5-VPC limit).
 
@@ -40,8 +40,8 @@ uv run cdk deploy
 
 Context defaults (override with `cdk deploy -c max_vcpus=32`):
 
-- `max_vcpus` (default `16`): ceiling for each GPU compute environment; keep it at or below
-  the G quota
+- `max_vcpus` (default `8`): ceiling for each GPU compute environment; keep it at or below
+  the G quota (8 for both Spot and on-demand since 2026-10-22, so two 4 vCPU GPU jobs at once)
 - `cpu_max_vcpus` (default `64`): ceiling for the CPU compute environment
 - `root_volume_gb` (default `100`): root EBS (Elastic Block Store) volume on Batch instances
 

@@ -181,7 +181,7 @@ def test_gpu_and_cpu_instance_types(template: Template) -> None:
 
 def test_gpu_vcpu_ceiling_matches_gpu_quota(template: Template) -> None:
     found = _instance_types_to_max_vcpus(template)
-    assert found[("g4dn.xlarge", "g5.xlarge")] == [16, 16]
+    assert found[("g4dn.xlarge", "g5.xlarge")] == [8, 8]
     assert found[("c6i.2xlarge", "c7i.2xlarge", "m6i.2xlarge")] == [64]
 
 
