@@ -1,7 +1,7 @@
 [project]
 name = "histostate"
 version = "0.1.0"
-description = "Predict glioblastoma cell-state composition from H&E slides with pathology foundation models."
+description = "Name the tissue type in a colorectal H&E image with a small CNN trained from scratch."
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
