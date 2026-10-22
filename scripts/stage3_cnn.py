@@ -2,7 +2,7 @@
 
 Run: uv run python scripts/stage3_cnn.py [--lr 0.1] [--epochs 60] [--batch-size 128] [--clip 5.0]
                                          [--no-augment] [--jitter 0.3] [--seed 0]
-                                         [--size 28|64] [--device mps|cuda|cpu]
+                                         [--size 28|64] [--blocks 2|3] [--device mps|cuda|cpu]
                                          [--save models/stage3_cnn.pt]
 """
 
@@ -33,6 +33,7 @@ parser.add_argument(
 parser.add_argument("--jitter", type=float, default=0.3, help="color jitter strength, 0 = off")
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--size", type=int, default=28, choices=[28, 64], help="tile width in pixels")
+parser.add_argument("--blocks", type=int, choices=[2, 3], help="conv blocks; default 2, or 3 at 64")
 parser.add_argument("--device", default="mps", choices=["cpu", "mps", "cuda"])
 parser.add_argument("--save", type=Path, default=Path("models/stage3_cnn.pt"))
 args = parser.parse_args()
@@ -74,7 +75,7 @@ x_train, x_val, x_shift = x_train.to(device), x_val.to(device), x_shift.to(devic
 y_train, y_val, y_shift = y_train.to(device), y_val.to(device), y_shift.to(device)
 
 n_classes = 9
-model = CNN(n_classes, args.size).to(device)
+model = CNN(n_classes, args.size, args.blocks).to(device)
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
 # Cosine decay: the learning rate follows a smooth curve from --lr down to near 0 by the last epoch.
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
@@ -139,7 +140,10 @@ for epoch in range(1, args.epochs + 1):
 model.load_state_dict(best_weights)
 args.save.parent.mkdir(parents=True, exist_ok=True)
 # Save the normalization too: new images must be scaled exactly like the training images.
-torch.save({"weights": best_weights, "mean": mean, "std": std, "size": args.size}, args.save)
+torch.save(
+    {"weights": best_weights, "mean": mean, "std": std, "size": args.size, "blocks": args.blocks},
+    args.save,
+)
 print(f"\nbest: epoch {best_epoch}, val acc {best_val_acc:.1%}, saved to {args.save}")
 shift_loss, shift_acc = evaluate(x_shift, y_shift)
 print(f"shifted validation for that model: loss {shift_loss:.4f}, acc {shift_acc:.1%}")

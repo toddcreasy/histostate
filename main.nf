@@ -7,6 +7,7 @@ params.jitters = '0.3'
 params.seeds = '0'
 params.epochs = 60
 params.size = 28
+params.blocks = ''
 params.device = 'cpu'
 params.outdir = 'results'
 
@@ -29,7 +30,8 @@ process TRAIN {
     """
     ${gpu_check}
     python -u /app/scripts/stage3_cnn.py --device ${params.device} --epochs ${params.epochs} \\
-        --size ${params.size} --jitter ${jitter} --seed ${seed} --save stage3_j${jitter}_s${seed}.pt \\
+        --size ${params.size} ${params.blocks ? "--blocks ${params.blocks}" : ''} \\
+        --jitter ${jitter} --seed ${seed} --save stage3_j${jitter}_s${seed}.pt \\
         | tee stage3_j${jitter}_s${seed}.log
     """
 }
