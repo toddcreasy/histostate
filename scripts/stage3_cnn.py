@@ -2,7 +2,8 @@
 
 Run: uv run python scripts/stage3_cnn.py [--lr 0.1] [--epochs 60] [--batch-size 128] [--clip 5.0]
                                          [--no-augment] [--jitter 0.3] [--seed 0]
-                                         [--size 28|64] [--blocks 2|3] [--device auto|cuda|mps|cpu]
+                                         [--size 28|64|128] [--blocks 2|3|4]
+                                         [--device auto|cuda|mps|cpu]
                                          [--save models/stage3_cnn.pt]
 """
 
@@ -32,8 +33,10 @@ parser.add_argument(
 )
 parser.add_argument("--jitter", type=float, default=0.3, help="color jitter strength, 0 = off")
 parser.add_argument("--seed", type=int, default=0)
-parser.add_argument("--size", type=int, default=64, choices=[28, 64], help="tile width in pixels")
-parser.add_argument("--blocks", type=int, choices=[2, 3], help="conv blocks; default 2, or 3 at 64")
+parser.add_argument(
+    "--size", type=int, default=64, choices=[28, 64, 128], help="tile width in pixels"
+)
+parser.add_argument("--blocks", type=int, choices=[2, 3, 4], help="conv blocks; default by size")
 parser.add_argument("--device", default="auto", choices=["auto", "cpu", "mps", "cuda"])
 parser.add_argument("--save", type=Path, default=Path("models/stage3_cnn.pt"))
 args = parser.parse_args()
@@ -58,28 +61,30 @@ val = PathMNIST(split="val", download=True, size=size)
 test = PathMNIST(split="test", download=True, size=size)
 
 
-def to_float(imgs):
-    # uint8 0-255, shape (N, H, W, 3) -> float 0-1, shape (N, 3, H, W): conv layers want channels
-    # first. One float copy only; at 64 pixels the training set alone is 4.4 GB as floats.
-    return torch.from_numpy(imgs).permute(0, 3, 1, 2).contiguous().float().div_(255)
-
-
-x_train = to_float(train.imgs)
-x_val = to_float(val.imgs)
+# Images stay as uint8 0-255, shape (N, H, W, 3), and become floats one batch at a time in
+# prepare(). At 128 pixels the training set is 4.4 GB this way and 17.7 GB as floats.
+x_train = torch.from_numpy(train.imgs)
+x_val = torch.from_numpy(val.imgs)
 y_train = torch.from_numpy(train.labels).long().squeeze(1)
 y_val = torch.from_numpy(val.labels).long().squeeze(1)
 # Shifted validation: half of the test patients' tiles. Tune on this; the other half is final test.
 y_test = torch.from_numpy(test.labels).long().squeeze(1)
 shift_idx, _ = split_test(y_test)
-x_shift = to_float(test.imgs[shift_idx.numpy()])
+x_shift = torch.from_numpy(test.imgs[shift_idx.numpy()])
 y_shift = y_test[shift_idx]
 
-# Per-channel mean and spread from the training set only, applied to every split in place.
-mean = torch.stack([x_train[:, c].mean() for c in range(3)])
-std = torch.stack([x_train[:, c].std() for c in range(3)])
-for x in (x_train, x_val, x_shift):
-    x.sub_(mean[:, None, None]).div_(std[:, None, None])
+# Per-channel mean and spread from the training set only, one channel at a time to cap memory.
+mean = torch.stack([x_train[..., c].float().div_(255).mean() for c in range(3)])
+std = torch.stack([x_train[..., c].float().div_(255).std() for c in range(3)])
 x_train, x_val, x_shift = x_train.to(device), x_val.to(device), x_shift.to(device)
+scale = (mean.to(device)[:, None, None], std.to(device)[:, None, None])
+
+
+def prepare(x):
+    # uint8 (N, H, W, 3) -> normalized float (N, 3, H, W): conv layers want channels first.
+    return (x.permute(0, 3, 1, 2).float().div(255) - scale[0]) / scale[1]
+
+
 y_train, y_val, y_shift = y_train.to(device), y_val.to(device), y_shift.to(device)
 
 n_classes = 9
@@ -90,10 +95,13 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epo
 print(f"CNN with {sum(p.numel() for p in model.parameters())} weights")
 
 
+# Chunks keep memory small: 2048 tiles through conv1 is about 1 GB at 64 pixels, 4 GB at 128.
+chunk = 2048 if args.size <= 64 else 512
+
+
 def predict(x):
-    # Chunks keep memory small: all 89,996 images through conv1 at once would be about 9 GB.
     with torch.no_grad():
-        return torch.cat([model(x[i : i + 2048]) for i in range(0, len(x), 2048)])
+        return torch.cat([model(prepare(x[i : i + chunk])) for i in range(0, len(x), chunk)])
 
 
 def evaluate(x, y):
@@ -111,7 +119,7 @@ for epoch in range(1, args.epochs + 1):
     order = torch.randperm(len(x_train), device=device)
     for i in range(0, len(order), args.batch_size):
         batch = order[i : i + args.batch_size]
-        x = x_train[batch]
+        x = prepare(x_train[batch])
         if args.augment:
             x = flip_rotate(x, augment_generator)  # training batches only, never validation
         if args.jitter:
