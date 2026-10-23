@@ -13,6 +13,36 @@ A learning project, not a medical device. Not for clinical or diagnostic use.
 uv run histostate ask tile.png
 ```
 
+## Why I built this
+
+My background is in biology, not machine learning. I had used notebooks on Kaggle and Colab, and my
+first plan for this repo put a small classifier on top of a pretrained pathology foundation model
+(Owkin's Phikon-v2). That would have worked, but the frozen model does the hard part, and I would
+have learned little about how a model is trained, tuned, or evaluated.
+
+So I changed the goal: build a tissue classifier myself, from the bottom up, and understand every
+piece. Each stage adds one idea, from gradient descent on two weights through logistic regression,
+an MLP, and a CNN. The part that taught me the most came after the model worked: finding out that
+a 97% validation score said little about slides from another clinic, and fixing that honestly. I
+kept the domain in histology because I know the tissue, which made it easier to tell when the
+model was right for the wrong reasons.
+
+I worked through it with Claude Code as a tutor. The rule in `CLAUDE.md` was that every step got
+explained in plain language before any code changed, and every result got interpreted after it
+ran. I decided what to try next and checked the results; Claude explained the concepts and wrote
+much of the code.
+
+It is also a portfolio project:
+
+- **PyTorch from scratch:** hand-written softmax and cross-entropy, and a training loop with
+  gradient clipping, cosine learning-rate decay, and augmentation. No pretrained weights or
+  trainer libraries.
+- **Evaluation:** a shifted validation set from a different clinical center, several seeds before
+  trusting a gap, a final test scored once per model, and activation inspection that caught the
+  model using stain color as a shortcut.
+- **AWS:** CDK in Python, AWS Batch with GPU and CPU queues, ECR, S3, and Nextflow.
+- **Python and CI:** uv, ruff, pytest, pre-commit, and GitHub Actions.
+
 ## Data
 
 [PathMNIST](https://medmnist.com/) from MedMNIST: about 107,000 colorectal H&E tiles at 28x28
