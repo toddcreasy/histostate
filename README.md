@@ -99,3 +99,7 @@ PathMNIST is licensed CC BY 4.0. If you use it, cite MedMNIST and the source dat
   learning: A retrospective multicenter study." PLOS Medicine, 2019.
 
 Code is Apache-2.0 (`LICENSE`).
+
+## Contact
+
+Questions about the project, or contract work: [todd.creasy@pilotbio.io](mailto:todd.creasy@pilotbio.io)
