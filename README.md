@@ -64,76 +64,36 @@ lower on tiles like the right.*
 `src/histostate/splits.py` cuts the test set into two stratified halves: shifted validation
 (shift-val), used for tuning, and final test, scored once per model choice.
 
-## How it works
+## How it fits together
 
-### Data and evaluation
-
-```mermaid
-flowchart LR
-    nct[("NCT-CRC-HE-100K")] --> train["train<br/>89,996 tiles"]
-    nct --> val["validation<br/>10,004 tiles"]
-    crc[("CRC-VAL-HE-7K<br/>different center")] --> split{"split_test<br/>stratified halves"}
-    split --> shift["shift-val<br/>3,587 tiles"]
-    split --> final["final test<br/>3,593 tiles"]
-
-    train --> aug["flip, rotate,<br/>color jitter"] --> fit["train CNN<br/>SGD, clipping,<br/>cosine decay"]
-    val -->|"keep best epoch"| fit
-    fit --> choose{"compare settings<br/>3 seeds each"}
-    shift -->|"tune on this"| choose
-    choose --> model["chosen model"]
-    final -->|"score once"| model
-    model --> ask["histostate ask tile.png"]
-```
-
-### Where it runs
+<img src="docs/architecture.svg" alt="histostate: training runs on a laptop or, for sweeps, as AWS Batch jobs that Nextflow submits. Each job runs on an EC2 instance, pulls the training image from ECR, downloads PathMNIST from Zenodo, and writes its checkpoint and log to S3. Below, the data flow: NCT-CRC-HE-100K gives train and validation, CRC-VAL-HE-7K from a second clinical center is split into shift-val for tuning and a final test scored once. At the bottom, pre-commit, pull requests, GitHub Actions, and pytest." width="100%">
 
 Every stage runs on a laptop. For sweeps (several settings times several seeds), Nextflow sends
-each training run to AWS Batch as its own job.
+each training run to AWS Batch as its own job. Batch scales the instances to zero when the queue
+is empty, so idle time costs nothing. One 64-pixel run (60 epochs) took 16 to 24 minutes on a T4
+GPU. Opened on its own, [`docs/architecture.svg`](docs/architecture.svg) has a note on each box
+saying what it does and why.
 
-```mermaid
-flowchart TB
-    subgraph laptop["Laptop"]
-        direction LR
-        cdk["cdk deploy<br/>infra/aws"]
-        build["docker buildx<br/>linux/amd64 image"]
-        nf["nextflow run main.nf<br/>one job per jitter and seed"]
-    end
-
-    subgraph aws["AWS us-east-1"]
-        direction LR
-        ecr[("ECR<br/>training image")]
-        queue["AWS Batch job queues<br/>GPU Spot, GPU on-demand, CPU Spot"]
-        ec2["EC2 instance per job<br/>g4dn.xlarge (T4) or g5.xlarge (A10G)<br/>c6i, c7i, m6i for CPU"]
-        s3[("S3<br/>work/ expires in 30 days<br/>results/")]
-        queue -->|"scale from 0"| ec2
-        ecr -->|"pull image"| ec2
-        ec2 -->|"checkpoint + log"| s3
-    end
-
-    zenodo[("Zenodo<br/>PathMNIST .npz")]
-
-    cdk -->|"creates queues, bucket"| queue
-    build -->|"push"| ecr
-    nf -->|"submit jobs"| queue
-    zenodo -->|"download"| ec2
-    s3 -->|"aws s3 sync to models/"| laptop
-```
-
-Batch scales the instances to zero when the queue is empty, so idle time costs nothing. One
-64-pixel run (60 epochs) took 16 to 24 minutes on a T4 GPU.
-
-### The model
-
-```mermaid
-flowchart LR
-    tile["tile<br/>3 x 64 x 64"] --> c1["conv 3x3, 32 filters<br/>ReLU, max pool"]
-    c1 -->|"32 x 32 x 32"| c2["conv 3x3, 64 filters<br/>ReLU, max pool"]
-    c2 -->|"64 x 16 x 16"| c3["conv 3x3, 64 filters<br/>ReLU, max pool"]
-    c3 -->|"64 x 8 x 8"| out["linear<br/>4,096 to 9"]
-    out --> soft["softmax<br/>9 class probabilities"]
-```
+<img src="docs/model.svg" alt="The 64-pixel CNN: a 3 x 64 x 64 tile goes through three blocks of 3x3 convolution, ReLU, and max pooling (32, 64, and 64 filters), shrinking to 64 x 8 x 8, then a linear layer gives 9 scores and softmax turns them into probabilities." width="100%">
 
 93,193 weights in `src/histostate/cnn.py`. The 28-pixel version stops after two blocks.
+
+### AWS services
+
+AWS is optional: it ran the seed sweeps in parallel. The full list of tools, including the ones
+passed over, is in [`docs/software.md`](docs/software.md).
+
+| Service | Job here | Why this one |
+|---|---|---|
+| **AWS Batch** | Three job queues: GPU Spot, GPU on-demand, CPU Spot | Starts an instance per job and scales to zero when idle. No cluster to run. |
+| **EC2** | g4dn.xlarge (NVIDIA T4) and g5.xlarge (A10G) for GPU jobs; c6i, c7i, m6i for CPU | The smallest GPU instances. A T4 trains a 64-pixel epoch in about 10 s. Spot reclaimed both GPU instances mid-run once, so the 64-pixel runs used on-demand. |
+| **ECR** | Stores the training image | Batch pulls it with the instance's IAM (Identity and Access Management) role, so no registry login lives on the instance. |
+| **S3** | Nextflow's working files and the checkpoints and logs | Both the jobs and the laptop read and write it. `work/` expires after 30 days. |
+| **CloudFormation / CDK** | Every resource above | One CDK app in Python with tests, deployed with one command. |
+
+Not AWS, and why: PyTorch and MedMNIST (the model and the data), Nextflow (fans a sweep out into
+Batch jobs and retries reclaimed Spot jobs), Docker (an open standard Batch consumes), uv, ruff,
+and pytest (language tooling), GitHub Actions (the repo is on GitHub).
 
 ## Results
 
