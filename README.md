@@ -11,12 +11,13 @@ uv run histostate ask tile.png
 ## Data
 
 [PathMNIST](https://medmnist.com/) from MedMNIST: about 107,000 colorectal H&E tiles at 28x28
-pixels, 9 tissue classes (adipose, background, debris, lymphocytes, mucus, smooth muscle, normal
-mucosa, stroma, tumor). It downloads on first use.
+pixels (also published at 64x64), 9 tissue classes (adipose, background, debris, lymphocytes,
+mucus, smooth muscle, normal mucosa, stroma, tumor). It downloads on first use.
 
 The official test set comes from a separate set of slides (CRC-VAL-HE-7K) than train and
 validation, so it shows a color and staining shift. `src/histostate/splits.py` cuts it into two
-stratified halves: shifted validation, used for tuning, and final test, scored once.
+stratified halves: shifted validation, used for tuning, and final test, scored once per model
+choice.
 
 ## Stages
 
@@ -27,14 +28,22 @@ Each stage is one script in `scripts/`, building on the last.
 | Warm-up: fit a line with hand-written gradient descent | `warmup_fit_line.py` | n/a |
 | 1: logistic regression on pixels | `stage1_logreg.py` | about 47% |
 | 2: MLP (multilayer perceptron) | `stage2_mlp.py` | about 66% |
-| 3: CNN, 47,625 weights | `stage3_cnn.py` | 95.1% |
+| 3: CNN at 28 pixels, 2 conv blocks, 47,625 weights | `stage3_cnn.py --size 28` | 95.1% |
+| 3: CNN at 64 pixels, 3 conv blocks, 93,193 weights | `stage3_cnn.py` | 97.8% |
 
 Stage 3 trains with SGD (stochastic gradient descent), gradient clipping, cosine learning-rate
 decay, flip and rotate augmentation, and color jitter (0.3). It keeps the epoch with the best
 validation accuracy.
 
-Final model: 90.3% on shifted validation and 91.4% on final test (scored once, 2026-10-22,
-`scripts/evaluate_test.py`). Stroma (63% recall) and smooth muscle (76%) are its main confusion.
+At 28 pixels, a third conv block adds about 1 point on validation and nothing on shifted
+validation; going to 64 pixels adds about 3 points there. Fiber shape is what separates stroma
+from smooth muscle, and most of it is gone at 28 pixels. `scripts/inspect_cnn.py` shows the
+filters and activation maps behind this.
+
+Final model (64 pixels, seed 0): 94.0% on shifted validation and 94.7% on final test
+(`scripts/evaluate_test.py`, 2026-10-22). Stroma (75% recall) and smooth muscle (83%) are still
+its main confusion. The 28-pixel model scored 91.4% on the same final test half, with stroma at 63%
+and muscle at 76%.
 
 ## Setup
 

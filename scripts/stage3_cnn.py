@@ -32,7 +32,7 @@ parser.add_argument(
 )
 parser.add_argument("--jitter", type=float, default=0.3, help="color jitter strength, 0 = off")
 parser.add_argument("--seed", type=int, default=0)
-parser.add_argument("--size", type=int, default=28, choices=[28, 64], help="tile width in pixels")
+parser.add_argument("--size", type=int, default=64, choices=[28, 64], help="tile width in pixels")
 parser.add_argument("--blocks", type=int, choices=[2, 3], help="conv blocks; default 2, or 3 at 64")
 parser.add_argument("--device", default="mps", choices=["cpu", "mps", "cuda"])
 parser.add_argument("--save", type=Path, default=Path("models/stage3_cnn.pt"))
