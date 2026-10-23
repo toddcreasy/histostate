@@ -77,7 +77,8 @@ why, and click it for its docs or source.
 
 <img src="docs/model.svg" alt="The 64-pixel CNN: a 3 x 64 x 64 tile goes through three blocks of 3x3 convolution, ReLU, and max pooling (32, 64, and 64 filters), shrinking to 64 x 8 x 8, then a linear layer gives 9 scores and softmax turns them into probabilities." width="100%">
 
-93,193 weights in `src/histostate/cnn.py`. The 28-pixel version stops after two blocks.
+93,193 weights in `src/histostate/cnn.py`. The 28-pixel version stops after two blocks. Like the
+diagram above, [`docs/model.svg`](docs/model.svg) is interactive in a browser.
 
 ### AWS services
 
