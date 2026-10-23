@@ -11,9 +11,9 @@ three Batch job queues:
 - `histostate-cpu-spot`: 8 vCPU instances (`c6i.2xlarge`, `c7i.2xlarge`, `m6i.2xlarge`) on the
   standard ECS AMI, for training without a GPU. Used by `-profile aws,cpu`.
 
-Copied from methyl-floor-infra; the differences are the GPU queues and AMI, an 8 vCPU (virtual
-CPU) ceiling on them, the smaller CPU queue, a 100 GB root volume, and the default VPC in place
-of a new one (us-east-1 is at its 5-VPC limit).
+The GPU queues use the ECS GPU AMI with an 8 vCPU (virtual CPU) ceiling, the CPU queue is
+smaller, instances get a 100 GB root volume, and the stack uses the account's default VPC rather
+than creating a new one.
 
 It is its own uv project so CDK's dependencies stay out of the histostate package.
 
