@@ -2,7 +2,7 @@
 
 Run: uv run python scripts/stage3_cnn.py [--lr 0.1] [--epochs 60] [--batch-size 128] [--clip 5.0]
                                          [--no-augment] [--jitter 0.3] [--seed 0]
-                                         [--size 28|64] [--blocks 2|3] [--device mps|cuda|cpu]
+                                         [--size 28|64] [--blocks 2|3] [--device auto|cuda|mps|cpu]
                                          [--save models/stage3_cnn.pt]
 """
 
@@ -34,10 +34,18 @@ parser.add_argument("--jitter", type=float, default=0.3, help="color jitter stre
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--size", type=int, default=64, choices=[28, 64], help="tile width in pixels")
 parser.add_argument("--blocks", type=int, choices=[2, 3], help="conv blocks; default 2, or 3 at 64")
-parser.add_argument("--device", default="mps", choices=["cpu", "mps", "cuda"])
+parser.add_argument("--device", default="auto", choices=["auto", "cpu", "mps", "cuda"])
 parser.add_argument("--save", type=Path, default=Path("models/stage3_cnn.pt"))
 args = parser.parse_args()
 
+# auto: the first available of CUDA (NVIDIA GPU), MPS (Apple GPU), then CPU.
+if args.device == "auto":
+    if torch.cuda.is_available():
+        args.device = "cuda"
+    elif torch.backends.mps.is_available():
+        args.device = "mps"
+    else:
+        args.device = "cpu"
 torch.manual_seed(args.seed)
 device = torch.device(args.device)
 # Augmentation draws from its own generator so batch order matches a run with --no-augment.
