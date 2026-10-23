@@ -196,6 +196,50 @@ cost 4.5x the time (about 70 minutes on a T4) and 11.4 GB of memory.
 Resolution helped until the fiber shape was visible, and 64 pixels already shows it. The 64-pixel
 model stays the final model, and final test was not scored for 128 pixels.
 
+## 10. Change one thing, guess, then check
+
+A review exercise once the model was done: turn off one part of the recipe, write down a guess,
+then run it. Every run is 28 pixels, 15 epochs, seed 0, about a minute on a laptop GPU. Short runs
+score lower than the 60-epoch numbers above, so compare each row to the baseline, not to earlier
+steps.
+
+```bash
+uv run python scripts/stage3_cnn.py --size 28 --epochs 15 --save /tmp/baseline.pt
+uv run python scripts/stage3_cnn.py --size 28 --epochs 15 --clip 1e9 --save /tmp/noclip.pt
+uv run python scripts/stage3_cnn.py --size 28 --epochs 15 --jitter 0 --save /tmp/nojitter.pt
+uv run python scripts/stage3_cnn.py --size 28 --epochs 15 --lr 0.01 --save /tmp/lr001.pt
+```
+
+Pass `--save` every time; the default path overwrites `models/stage3_cnn.pt`.
+
+| Run | Val | Shift-val | Shift-val loss | My guess |
+|---|---|---|---|---|
+| Baseline | 92.3% | 87.6% | 0.32 | |
+| Clipping off | 92.4% | 87.5% | 0.32 | A few points lower, collapse then recover |
+| Jitter off | 95.1% | 85.8% | 0.74 | Val down, shift-val down a lot |
+| lr 0.01 | 81.7% | 79.8% | 0.57 | Higher, smoother |
+
+**Clipping off.** The shape was right: dips of 12 to 13 points at epochs 8 and 11, against 6 in
+the baseline. The final number didn't move. By epoch 13 cosine decay has the learning rate under
+0.01, so a spike of 20 makes only a small step, and the script keeps the best epoch anyway. Step 3
+added clipping and cosine decay together; this separates them. In this recipe decay protects the
+final model, and clipping mostly smooths the path there.
+
+**Jitter off.** Validation went up, not down. Validation tiles share the training clinic's stain,
+so stain color is a real clue there, and jitter hides it on purpose. Shift-val fell 1.8 points,
+which one seed can't separate from noise, but the shift-val loss more than doubled: the model got
+confidently wrong on the other clinic's tiles. Debris recall on shift-val fell from 85% to 61%
+while muscle rose from 67% to 75%. A shortcut helps some classes and breaks others.
+
+**lr 0.01.** Smooth, as guessed, and 10 points worse. Train accuracy (81.7%) equals validation
+(81.7%), so this is underfitting: the model ran out of distance, not data. Cosine decay takes any
+starting learning rate to near 0, and from epoch 11 the steps were too small to matter. The usual
+rule is the largest learning rate that doesn't blow up, and clipping raises that ceiling.
+
+Every guess got the shape of the curve right and the final number wrong. The guesses assumed a
+calmer run ends better. The final number comes from how far the model got and what it learned,
+not how smooth the path was.
+
 ## What carried over
 
 - Validation from the same pool as training only tells you about more of the same. Build a
