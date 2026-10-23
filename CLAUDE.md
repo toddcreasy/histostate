@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+> This is the instruction file Claude Code, the AI assistant I learned with, read at the start of
+> every session. The "Explain before you act" section is what made it a tutor. The voice profile
+> it points to (`~/.claude/rules/writing-voice.md`) is a private file on my machine.
+
 Python project template. Drop this file into a fresh repo, fill in the placeholders, and Claude
 Code scaffolds the project in two phases, stopping for review after each.
 
