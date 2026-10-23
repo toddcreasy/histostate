@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1240" height="170" viewBox="0 0 1240 170" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif">
+<title>The 64-pixel CNN</title>
+<desc>Three conv blocks, then one linear layer. 93,193 weights.</desc>
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3E4C59"/></marker></defs>
+<rect width="1240" height="170" fill="#FFFFFF"/>
+<style>.t{fill:#1F2933}.s{fill:#52606D;font-size:11px}.g{fill:#3E4C59;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}.e{fill:#3E4C59;font-size:10.5px}a:hover rect.n{stroke-width:2.5}g.h:hover rect.n{stroke-width:2.5}</style>
+<text x="40" y="26" class="t" font-size="15" font-weight="700">The model</text>
+<text x="140" y="26" class="s">src/histostate/cnn.py, 64-pixel version. 93,193 weights.</text>
+<g class="h"><title>Red, green, and blue, each scaled by the training set&#x27;s mean and spread.</title><rect class="n" x="20.0" y="70" width="170" height="56" rx="8" fill="#E7F3EC" stroke="#2F8F5B" stroke-width="1.5"/><text x="105.0" y="94.0" text-anchor="middle" class="t" font-size="13" font-weight="700">Tile</text><text x="105.0" y="111.0" text-anchor="middle" class="s">3 x 64 x 64</text></g>
+<g class="h"><title>32 filters, each a 3x3 pattern over the three colors, slid across the tile. ReLU keeps positive responses; max pool halves the width and height.</title><rect class="n" x="226.0" y="70" width="170" height="56" rx="8" fill="#F1ECFB" stroke="#7A57C9" stroke-width="1.5"/><text x="311.0" y="94.0" text-anchor="middle" class="t" font-size="13" font-weight="700">Block 1</text><text x="311.0" y="111.0" text-anchor="middle" class="s">conv 3x3, 32 filters</text></g>
+<g><polyline points="190.0,98.0 226.0,98.0" fill="none" stroke="#3E4C59" stroke-width="1.5" marker-end="url(#arr)"/></g>
+<text x="311.0" y="148" text-anchor="middle" class="e">out: 32 x 32 x 32</text>
+<g class="h"><title>Combines first-layer patterns. Each output now sees an 8x8 patch of the tile.</title><rect class="n" x="432.0" y="70" width="170" height="56" rx="8" fill="#F1ECFB" stroke="#7A57C9" stroke-width="1.5"/><text x="517.0" y="94.0" text-anchor="middle" class="t" font-size="13" font-weight="700">Block 2</text><text x="517.0" y="111.0" text-anchor="middle" class="s">conv 3x3, 64 filters</text></g>
+<g><polyline points="396.0,98.0 432.0,98.0" fill="none" stroke="#3E4C59" stroke-width="1.5" marker-end="url(#arr)"/></g>
+<text x="517.0" y="148" text-anchor="middle" class="e">out: 64 x 16 x 16</text>
+<g class="h"><title>Each output sees an 18x18 patch, long enough to span a muscle fiber. The 28-pixel model stops after block 2.</title><rect class="n" x="638.0" y="70" width="170" height="56" rx="8" fill="#F1ECFB" stroke="#7A57C9" stroke-width="1.5"/><text x="723.0" y="94.0" text-anchor="middle" class="t" font-size="13" font-weight="700">Block 3</text><text x="723.0" y="111.0" text-anchor="middle" class="s">conv 3x3, 64 filters</text></g>
+<g><polyline points="602.0,98.0 638.0,98.0" fill="none" stroke="#3E4C59" stroke-width="1.5" marker-end="url(#arr)"/></g>
+<text x="723.0" y="148" text-anchor="middle" class="e">out: 64 x 8 x 8</text>
+<g class="h"><title>One score per tissue class from the 64 x 8 x 8 feature grid.</title><rect class="n" x="844.0" y="70" width="170" height="56" rx="8" fill="#F1ECFB" stroke="#7A57C9" stroke-width="1.5"/><text x="929.0" y="94.0" text-anchor="middle" class="t" font-size="13" font-weight="700">Linear</text><text x="929.0" y="111.0" text-anchor="middle" class="s">4,096 to 9</text></g>
+<g><polyline points="808.0,98.0 844.0,98.0" fill="none" stroke="#3E4C59" stroke-width="1.5" marker-end="url(#arr)"/></g>
+<g class="h"><title>Turns scores into probabilities that sum to 1. Training lowers cross-entropy, which punishes confident wrong answers hardest.</title><rect class="n" x="1050.0" y="70" width="170" height="56" rx="8" fill="#E7F3EC" stroke="#2F8F5B" stroke-width="1.5"/><text x="1135.0" y="94.0" text-anchor="middle" class="t" font-size="13" font-weight="700">Softmax</text><text x="1135.0" y="111.0" text-anchor="middle" class="s">9 probabilities</text></g>
+<g><polyline points="1014.0,98.0 1050.0,98.0" fill="none" stroke="#3E4C59" stroke-width="1.5" marker-end="url(#arr)"/></g>
+</svg>
