@@ -4,7 +4,8 @@ The test set (CRC-VAL-HE-7K) comes from patients the model never trained on. It 
 (histostate.splits): shifted validation for tuning, and this final test half. Look at the final
 half once, after all tuning is done; tuning against it turns it into another validation set.
 
-Run: uv run python scripts/evaluate_test.py [--model models/stage3_cnn.pt] [--device mps]
+Run: uv run python scripts/evaluate_test.py [--model models/stage3_cnn.pt]
+                                            [--device auto|cuda|mps|cpu]
 """
 
 import argparse
@@ -19,9 +20,17 @@ from histostate.splits import split_test
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", type=Path, default=Path("models/stage3_cnn.pt"))
-parser.add_argument("--device", default="mps", choices=["cpu", "mps"])
+parser.add_argument("--device", default="auto", choices=["auto", "cpu", "mps", "cuda"])
 args = parser.parse_args()
 
+# auto: the first available of CUDA (NVIDIA GPU), MPS (Apple GPU), then CPU.
+if args.device == "auto":
+    if torch.cuda.is_available():
+        args.device = "cuda"
+    elif torch.backends.mps.is_available():
+        args.device = "mps"
+    else:
+        args.device = "cpu"
 device = torch.device(args.device)
 n_classes = 9
 codes = ["ADI", "BACK", "DEB", "LYM", "MUC", "MUS", "NORM", "STR", "TUM"]

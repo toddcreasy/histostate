@@ -4,6 +4,11 @@ Name the tissue type in a colorectal H&E (hematoxylin and eosin) image with a sm
 (convolutional neural network) built and trained from scratch in PyTorch. No pretrained weights,
 no trainer libraries: the point is to learn every piece, from gradient descent up.
 
+[docs/walkthrough.md](docs/walkthrough.md) tells the story stage by stage: what each step
+taught, the numbers it produced, and what went wrong.
+
+A learning project, not a medical device. Not for clinical or diagnostic use.
+
 ```bash
 uv run histostate ask tile.png
 ```
@@ -14,10 +19,10 @@ uv run histostate ask tile.png
 pixels (also published at 64x64), 9 tissue classes (adipose, background, debris, lymphocytes,
 mucus, smooth muscle, normal mucosa, stroma, tumor). It downloads on first use.
 
-The official test set comes from a separate set of slides (CRC-VAL-HE-7K) than train and
-validation, so it shows a color and staining shift. `src/histostate/splits.py` cuts it into two
-stratified halves: shifted validation, used for tuning, and final test, scored once per model
-choice.
+The official test set (CRC-VAL-HE-7K) comes from a different clinical center than train and
+validation (NCT-CRC-HE-100K), so it shows a color and staining shift. `src/histostate/splits.py`
+cuts it into two stratified halves: shifted validation, used for tuning, and final test, scored once
+per model choice.
 
 ## Stages
 
@@ -55,15 +60,16 @@ uv run pytest
 uv run python scripts/stage3_cnn.py --save models/stage3_cnn.pt
 ```
 
-Runs on CUDA, Apple Silicon (MPS, Metal Performance Shaders), or CPU; pick with `--device`.
+Picks a CUDA (NVIDIA) GPU, then Apple Silicon (MPS, Metal Performance Shaders), then CPU; override
+with `--device`. A laptop is enough for every stage.
 
-## Train on AWS
+## Train on AWS (optional)
 
-`main.nf` runs Stage 3 training on AWS Batch, one job per jitter and seed pair, on GPU
-instances (`-profile aws,gpu`) or CPU instances (`-profile aws,cpu`).
-Requires Nextflow >= 26.04, AWS credentials, the stack in `infra/aws` deployed, and the image
-pushed to ECR (Elastic Container Registry); `infra/aws/README.md` covers both. Copy
-`.env.example` to `.env` and fill it in.
+Not needed to follow along, and it bills your AWS account. `main.nf` runs Stage 3 training on AWS
+Batch, one job per jitter and seed pair, on GPU instances (`-profile aws,gpu`) or CPU instances
+(`-profile aws,cpu`). Requires Nextflow >= 26.04, AWS credentials, the stack in `infra/aws`
+deployed, and the image pushed to ECR (Elastic Container Registry); `infra/aws/README.md` covers
+both. Copy `.env.example` to `.env` and fill it in.
 
 ```bash
 set -a; source .env; set +a
@@ -80,5 +86,20 @@ src/histostate/     model, augmentation, splits, and the ask command
 tests/              pytest tests, no network by default
 scripts/            one training or evaluation script per stage
 infra/aws/          CDK stack for AWS Batch
-docs/               long-form docs
+docs/               the walkthrough
 ```
+
+## Data license and citation
+
+PathMNIST is licensed CC BY 4.0. If you use it, cite MedMNIST and the source dataset:
+
+- Yang, J., et al. "MedMNIST v2: A large-scale lightweight benchmark for 2D and 3D biomedical
+  image classification." Scientific Data, 2023.
+- Kather, J. N., et al. "Predicting survival from colorectal cancer histology slides using deep
+  learning: A retrospective multicenter study." PLOS Medicine, 2019.
+
+Code is Apache-2.0 (`LICENSE`).
+
+## Contact
+
+Questions about the project, or contract work: [todd.creasy@pilotbio.io](mailto:todd.creasy@pilotbio.io)
