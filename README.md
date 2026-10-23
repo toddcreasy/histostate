@@ -146,7 +146,7 @@ uv run python scripts/stage3_cnn.py --save models/stage3_cnn.pt
 
 Picks a CUDA (NVIDIA) GPU, then Apple Silicon (MPS, Metal Performance Shaders), then CPU; override
 with `--device`. A laptop is enough for every stage. `scripts/readme_images.py` redraws the tile
-figures above.
+figures above, and `scripts/make_diagrams.py` redraws the two diagrams.
 
 ## Train on AWS (optional)
 
