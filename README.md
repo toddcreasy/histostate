@@ -51,7 +51,7 @@ It is also a portfolio project:
 ## Data
 
 [PathMNIST](https://medmnist.com/) from MedMNIST: 107,180 colorectal H&E tiles at 28x28 pixels
-(also published at 64x64), 9 tissue classes. It downloads on first use.
+(also published at 64x64 and 128x128), 9 tissue classes. It downloads on first use.
 
 The official test set (CRC-VAL-HE-7K) comes from a different clinical center than train and
 validation (NCT-CRC-HE-100K), and its staining looks different:

@@ -32,6 +32,13 @@ def test_64_pixel_cnn_adds_a_block_and_gives_nine_scores():
     assert CNN(n_classes=9).conv3 is None
 
 
+def test_128_pixel_cnn_adds_a_fourth_block_and_ends_on_an_8x8_grid():
+    model = CNN(n_classes=9, size=128)
+    assert model(torch.randn(2, 3, 128, 128)).shape == (2, 9)
+    assert model.conv4 is not None
+    assert model.output.in_features == 64 * 8 * 8
+
+
 def test_28_pixel_cnn_with_three_blocks_ends_on_a_3x3_grid():
     model = CNN(n_classes=9, blocks=3)
     assert model(torch.randn(2, 3, 28, 28)).shape == (2, 9)

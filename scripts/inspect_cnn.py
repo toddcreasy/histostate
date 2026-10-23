@@ -75,8 +75,9 @@ x = ((raw.float() / 255 - checkpoint["mean"]) / checkpoint["std"]).permute(0, 3,
 with torch.no_grad():
     a1 = torch.relu(model.conv1(x))  # (N, 32, size, size)
     a2 = torch.relu(model.conv2(model.pool(a1)))  # (N, 64, size / 2, size / 2)
-    if model.conv3 is not None:
-        a2 = torch.relu(model.conv3(model.pool(a2)))  # (N, 64, size / 4, size / 4)
+    for conv in (model.conv3, model.conv4):
+        if conv is not None:
+            a2 = torch.relu(conv(model.pool(a2)))  # halves the grid again each block
     predicted = model(x).argmax(dim=1)
 
 picks = {
@@ -86,7 +87,7 @@ picks = {
 }
 for name, i in picks.items():
     tile = Image.fromarray(raw[i].numpy()).resize((224, 224), Image.Resampling.NEAREST)
-    scale = 84 // size  # 3 at 28 pixels, 1 at 64
+    scale = max(1, 84 // size)  # 3 at 28 pixels, 1 at 64 and 128
     maps1, maps2 = grid(a1[i], 8, scale), grid(a2[i], 8, 3 * scale)
     sheet = Image.new(
         "RGB", (max(224, maps1.width, maps2.width), 224 + maps1.height + maps2.height + 20), "white"
@@ -112,7 +113,7 @@ codes = ["ADI", "BACK", "DEB", "LYM", "MUC", "MUS", "NORM", "STR", "TUM"]
 channel = gap.abs().argmax().item()
 top = strength[:, channel].argsort(descending=True)[:20]
 tiles = raw[top].permute(0, 3, 1, 2).float()
-grid(tiles, columns=10, scale=112 // size).save(args.out / f"channel{channel}_top20.png")
+grid(tiles, columns=10, scale=max(1, 112 // size)).save(args.out / f"channel{channel}_top20.png")
 print(
     f"\nchannel {channel}: 20 strongest tiles saved to {args.out / f'channel{channel}_top20.png'}"
 )

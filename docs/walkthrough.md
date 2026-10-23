@@ -176,6 +176,26 @@ that fiber shape is mostly gone, and a deeper model can't learn detail that isn'
 
 **Final test for the 64-pixel model: 94.7%, loss 0.14.** Muscle recall 83%, stroma 75%.
 
+## 9. Does 128 pixels help more?
+
+`uv run python scripts/stage3_cnn.py --size 128` (a fourth conv block, `--blocks 4`, so the last
+grid is still 8x8)
+
+If 28 to 64 pixels bought 3 points, maybe 64 to 128 buys more. Same recipe, 3 seeds:
+
+| Model | Weights | Val | Shift-val (range) | Muscle recall | Stroma recall | Time per epoch (T4) |
+|---|---|---|---|---|---|---|
+| 64 px, 3 blocks | 93,193 | 97.8% | 94.2% (93.9 to 94.6) | 82.2% | 78.2% | about 10 s |
+| 128 px, 4 blocks | 130,121 | 98.5% | 94.5% (94.1 to 94.8) | 74.9% | 81.4% | about 46 s |
+
+Validation went up 0.7 points. Shift-val went up 0.3, which is inside the seed spread: the two
+ranges overlap. The errors moved rather than shrank. Muscle recall fell 7 points and stroma rose
+3, so the 128-pixel model calls more muscle "stroma" instead of the other way round. Each run
+cost 4.5x the time (about 70 minutes on a T4) and 11.4 GB of memory.
+
+Resolution helped until the fiber shape was visible, and 64 pixels already shows it. The 64-pixel
+model stays the final model, and final test was not scored for 128 pixels.
+
 ## What carried over
 
 - Validation from the same pool as training only tells you about more of the same. Build a
