@@ -1,6 +1,6 @@
 # Runtime image for training on AWS Batch GPU instances. Nextflow runs one training run per container.
 # The Linux torch wheels in uv.lock bundle the CUDA libraries; the host AMI supplies the NVIDIA driver.
-FROM python:3.12.15-slim-trixie
+FROM python:3.14.5-slim-trixie
 
 # Nextflow reads task metrics with ps, which slim images lack.
 RUN apt-get update \

@@ -6,7 +6,7 @@ Every tool this project uses, what it does here, why it was picked, and what was
 
 | Tool | What it is | What it does here | Why this one | Passed over, and why |
 |---|---|---|---|---|
-| Python 3.12 | Programming language | Everything outside the AWS console | The language nearly all ML tooling is written for | |
+| Python 3.14 | Programming language | Everything outside the AWS console | The language nearly all ML tooling is written for | |
 | PyTorch 2.14 | Tensor library with automatic gradients (autograd) | Builds the models, computes gradients, runs training on Apple GPUs (MPS), NVIDIA GPUs (CUDA), or CPU | You write the training loop yourself, which was the point. One codebase runs on a Mac and on AWS GPUs | **TensorFlow/Keras:** `model.fit()` hides the loop. **JAX:** a more functional style to learn on top of ML itself |
 | MedMNIST | Python package for a set of small medical imaging datasets | Downloads PathMNIST as NumPy arrays, already split into train, validation, and test, at 28 or 64 pixels | Clean labels and a fixed split, so time goes into the model, not data wrangling. Small enough to train in minutes | **Raw NCT-CRC-HE-100K at 224 pixels:** bigger downloads and slower training; 64 pixels was enough to see the effect of resolution |
 | NumPy | Array library | Holds the downloaded images; reads uploaded images in `histostate ask` | MedMNIST returns NumPy arrays | |
@@ -36,7 +36,7 @@ Not used on purpose:
 
 | Tool | What it is | What it does here | Why this one | Passed over, and why |
 |---|---|---|---|---|
-| Docker | Container builder | Packages the code and locked dependencies into one Linux image for AWS | AWS Batch runs containers. The PyTorch wheels in `uv.lock` bundle the CUDA libraries, so a plain `python:3.12-slim` base works | **NVIDIA CUDA base images:** several GB larger, and the wheels already carry CUDA |
+| Docker | Container builder | Packages the code and locked dependencies into one Linux image for AWS | AWS Batch runs containers. The PyTorch wheels in `uv.lock` bundle the CUDA libraries, so a plain `python:3.14-slim` base works | **NVIDIA CUDA base images:** several GB larger, and the wheels already carry CUDA |
 | Nextflow | Workflow manager | Turns `--jitters 0.3,0.5 --seeds 1,2` into four Batch jobs, moves files through S3, retries jobs when Spot takes an instance back, records time and memory per job | Same tool as my other AWS pipelines, with a mature AWS Batch executor | **A shell loop of `aws batch submit-job`:** would mean hand-writing file staging, retries, and tracking. **Snakemake:** would work too, but Nextflow was already set up |
 | AWS Batch | Managed job queue | Starts an EC2 instance per job, runs the container, scales to zero when idle | Pay only while jobs run; GPU and CPU queues side by side | **SageMaker training jobs:** another ML-specific API to learn, and different from my other pipelines. **One long-running EC2 instance:** billed while idle and managed by hand |
 | EC2 | Virtual machines | g4dn.xlarge (NVIDIA T4) and g5.xlarge (A10G) for GPU jobs; c6i, c7i, m6i for CPU jobs | Smallest GPU instances; a T4 trained 64-pixel models at about 10 s per epoch | **Spot only:** cheaper, but AWS took back both GPU instances mid-run once, so the 64-pixel runs used on-demand |
