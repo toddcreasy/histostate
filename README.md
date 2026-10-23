@@ -71,8 +71,9 @@ lower on tiles like the right.*
 Every stage runs on a laptop. For sweeps (several settings times several seeds), Nextflow sends
 each training run to AWS Batch as its own job. Batch scales the instances to zero when the queue
 is empty, so idle time costs nothing. One 64-pixel run (60 epochs) took 16 to 24 minutes on a T4
-GPU. Opened on its own, [`docs/architecture.svg`](docs/architecture.svg) has a note on each box
-saying what it does and why.
+GPU. GitHub shows the diagram as a plain image. Opened in a browser,
+[`docs/architecture.svg`](docs/architecture.svg) is interactive: hover a box for what it does and
+why, and click it for its docs or source.
 
 <img src="docs/model.svg" alt="The 64-pixel CNN: a 3 x 64 x 64 tile goes through three blocks of 3x3 convolution, ReLU, and max pooling (32, 64, and 64 filters), shrinking to 64 x 8 x 8, then a linear layer gives 9 scores and softmax turns them into probabilities." width="100%">
 
