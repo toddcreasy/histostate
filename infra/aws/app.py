@@ -15,4 +15,6 @@ BatchStack(
     ),
 )
 
+cdk.Tags.of(app).add("project", "histostate")
+
 app.synth()
