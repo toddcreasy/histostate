@@ -53,7 +53,8 @@ outside this stack:
 
 ```bash
 aws ecr create-repository --repository-name histostate \
-  --image-scanning-configuration scanOnPush=true
+  --image-scanning-configuration scanOnPush=true \
+  --tags Key=project,Value=histostate
 ```
 
 Build and push from the repo root. Batch instances are x86_64, so build for `linux/amd64` even
