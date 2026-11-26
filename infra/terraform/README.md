@@ -7,6 +7,7 @@ has its own state file in one S3 bucket, `histostate-tfstate-<account ID>`.
 |---|---|---|
 | `bootstrap/` | The state bucket itself (versioned, encrypted, private, TLS only, old versions expire after 90 days) | `bootstrap/terraform.tfstate` |
 | `foundation/` | The monthly budget on resources tagged `project=histostate`, with email alerts at 50% and 80% of actual spend and 100% of forecast | `foundation/terraform.tfstate` |
+| `training/` | What `nextflow run main.nf -profile aws,...` submits to: the S3 bucket for Nextflow's `work/` (expires after 30 days) and `results/`, the ECR repository for the training image (immutable tags, 10 newest kept), and AWS Batch: three job queues (`histostate-gpu-spot`, `histostate-gpu-ondemand`, `histostate-cpu-spot`), each on a compute environment that scales to 0, in the account's default VPC. `terraform output -raw env` prints the `.env` lines | `training/terraform.tfstate` |
 
 Every resource is tagged `project=histostate` and `managed-by=terraform`. The budget counts only
 the `project` tag. Account-wide settings (the CloudTrail trail, Bedrock invocation logging) are
