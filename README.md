@@ -170,6 +170,7 @@ time and peak memory per run.
 src/histostate/     model, augmentation, splits, and the ask command
 tests/              pytest tests, no network by default
 scripts/            one training or evaluation script per stage, plus figures
+app/                Gradio demo page around the ask command
 infra/aws/          CDK stack for AWS Batch
 docs/               the walkthrough, the software list, and README images
 ```
