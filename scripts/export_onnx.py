@@ -1,9 +1,10 @@
-"""Export the trained CNN to ONNX for the website, then check it against PyTorch.
+"""Export the trained CNN (convolutional neural network) to ONNX (Open Neural Network Exchange) for
+the website, then check it against PyTorch.
 
-The ONNX graph takes raw RGB pixels as a browser canvas gives them (batch x 64 x 64 x 3, values
-0 to 255) and returns the 9 class probabilities. Scaling, the training mean and spread, and
-softmax are inside the graph, the same steps as histostate.ask.predict, so the browser only has
-to resize the image.
+The ONNX graph takes raw RGB (red, green, blue) pixels as a browser canvas gives them (batch x 64
+x 64 x 3, values 0 to 255) and returns the 9 class probabilities. Scaling, the training mean and
+spread, and softmax are inside the graph, the same steps as histostate.ask.predict, so the
+browser only has to resize the image.
 
 The check runs every PathMNIST test tile through both and reports the largest probability
 difference and how many top answers disagree.
@@ -73,10 +74,14 @@ def main() -> None:
 
     test = PathMNIST(split="test", size=size, download=True)
     pixels = torch.from_numpy(test.imgs).float()
-    with torch.no_grad():
-        expected = wrapped(pixels).numpy()
     session = ort.InferenceSession(args.out, providers=["CPUExecutionProvider"])
-    got = session.run(None, {"pixels": pixels.numpy()})[0]
+    # In chunks: all 7,180 tiles at once need about 3.5 GB at 64 pixels and 14 GB at 128.
+    expected, got = [], []
+    for chunk in pixels.split(512):
+        with torch.no_grad():
+            expected.append(wrapped(chunk).numpy())
+        got.append(session.run(None, {"pixels": chunk.numpy()})[0])
+    expected, got = np.concatenate(expected), np.concatenate(got)
 
     disagree = int((expected.argmax(1) != got.argmax(1)).sum())
     accuracy = float((got.argmax(1) == test.labels[:, 0]).mean())
