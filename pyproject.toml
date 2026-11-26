@@ -32,6 +32,11 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.9",
 ]
+site = [
+    "onnx>=1.23.2",
+    "onnxruntime>=1.32.0",
+    "onnxscript>=0.7.2",
+]
 
 [tool.ruff]
 line-length = 100
