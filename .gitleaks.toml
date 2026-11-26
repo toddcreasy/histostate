@@ -1,0 +1,77 @@
+# Secret scan for every commit, in CI (.github/workflows/ci.yml, job "secrets") and before a
+# local commit (.pre-commit-config.yaml). gitleaks' default rules find API keys, tokens, and
+# private keys; the rules below add what this project must also never commit: email
+# addresses, passwords, usernames, and credentials inside URLs. Adapted from ehr-rwe-eln.
+#
+# An allowlist entry here says why a match is not a secret. Add one only for a value that is
+# public by design, never to get a real credential past the check.
+
+title = "histostate secret scan"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "email-address"
+description = "An email address"
+regex = '''\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b'''
+keywords = ["@"]
+
+  [[rules.allowlists]]
+  description = "Reserved example domains (RFC 2606)"
+  regexTarget = "match"
+  regexes = ['''@(?:[A-Za-z0-9-]+\.)*example\.(?:com|org|net)$''']
+
+  [[rules.allowlists]]
+  description = "GitHub's public noreply addresses, made to be published"
+  regexTarget = "match"
+  regexes = ['''@users\.noreply\.github\.com$''']
+
+  [[rules.allowlists]]
+  description = "The maintainer's contact address in the README's Contact section, public on purpose"
+  condition = "AND"
+  regexTarget = "match"
+  regexes = ['''^todd\.creasy@pilotbio\.io$''']
+  paths = ['''^README\.md$''']
+
+[[rules]]
+id = "password-literal"
+description = "A password or secret given as a quoted literal, in an assignment or a setenv call"
+# No word boundary before the keyword: DB_PASSWORD must match, and "_" counts as a word character.
+# Spaces and tabs only around the separator: a match never spans lines.
+regex = '''(?i)(?:password|passwd|pwd|secret)[a-z_]*["']?[ \t]*[:=,][ \t]*["']([^"'\s]{3,})["']'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd", "secret"]
+
+  [[rules.allowlists]]
+  description = "An environment variable's name, not its value (a list of names such as DB_PASSWORD, LOG_LEVEL)"
+  regexTarget = "secret"
+  regexes = ['''^[A-Z][A-Z0-9_]+$''']
+
+[[rules]]
+id = "password-env"
+description = "A password, secret, token, or key set in an env file or YAML: DB_PASSWORD=value"
+# Env files, YAML, shell, config, and Markdown only: in code, NAME=value is usually not a literal.
+path = '''(?i)(?:^|/)(?:\.env[^/]*|[^/]*\.(?:env|ya?ml|ini|cfg|conf|properties|sh|bash|zsh|md|txt)|Dockerfile[^/]*)$'''
+# At a line's start or after a space or ";", so -e POSTGRES_PASSWORD=value in a command counts.
+regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z_]*(?:password|passwd|pwd|secret|token|api_key)[a-z_]*[ \t]*[=:][ \t]*([^\s"'#$`|]{3,})'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd", "secret", "token", "api_key"]
+
+[[rules]]
+id = "url-credentials"
+description = "A username and password inside a URL"
+regex = '''\b[a-z][a-z0-9+.-]*://([^\s/:@'"]+):([^\s/@'"]+)@[^\s/'"]+'''
+keywords = ["://"]
+
+  [[rules.allowlists]]
+  description = "Placeholders, not credentials"
+  regexTarget = "match"
+  regexes = ['''://(?:user|username|USER|\$\{?[A-Za-z_]+\}?):(?:pass|password|PASSWORD|\$\{?[A-Za-z_]+\}?)@''']
+
+[[rules]]
+id = "username-assignment"
+description = "A username assigned a literal value"
+regex = '''(?i)\b(?:user(?:name)?|login|db_user)["']?\s*[:=]\s*["']([^"'\s]{3,})["']'''
+secretGroup = 1
+keywords = ["user", "login"]
