@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* Same palette as methyl-flow.pilotbio.io, so the project sites read as one family. */
+:root {
+  --bg: #fbfbfa;
+  --card: #ffffff;
+  --ink: #0f1b2d;
+  --text: #1f2933;
+  --muted: #52606d;
+  --line: #e4e7eb;
+  --accent: #eb6834;
+  --hero: #0f1b2d;
+  --hero-text: #f5f7fa;
+  --hero-muted: #b8c4d3;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-hero: var(--hero);
+  --color-hero-text: var(--hero-text);
+  --color-hero-muted: var(--hero-muted);
+  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Tiles are 64x64; scaled up, they should show their pixels, not a blur. */
+.pixelated {
+  image-rendering: pixelated;
+}
