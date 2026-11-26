@@ -144,10 +144,25 @@ Requires [uv](https://docs.astral.sh/uv/).
 ```bash
 uv sync
 uv run pytest
+```
+
+To try the trained model, download it from the
+[v0.1.0 release](https://github.com/toddcreasy/histostate/releases/tag/v0.1.0) (377 KB) and name
+a tile:
+
+```bash
+curl -L --create-dirs -o models/stage3_cnn.pt \
+  https://github.com/toddcreasy/histostate/releases/download/v0.1.0/stage3_cnn.pt
+uv run histostate ask tile.png
+```
+
+To train your own instead (16 to 24 minutes on a GPU):
+
+```bash
 uv run python scripts/stage3_cnn.py --save models/stage3_cnn.pt
 ```
 
-Picks a CUDA (NVIDIA) GPU, then Apple Silicon (MPS, Metal Performance Shaders), then CPU; override
+Training picks a CUDA (NVIDIA) GPU, then Apple Silicon (MPS, Metal Performance Shaders), then CPU; override
 with `--device`. A laptop is enough for every stage. `scripts/readme_images.py` redraws the tile
 figures above, and `scripts/make_diagrams.py` redraws the two diagrams.
 
