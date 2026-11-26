@@ -24,9 +24,14 @@ data "aws_ssm_parameter" "ami_cpu" {
 }
 
 # Nextflow runs the AWS CLI from the host at aws.batch.cliPath (nextflow.config), so every
-# instance installs it with Miniforge (conda-forge only, no Anaconda licensing) at boot. Batch
-# merges its own ECS bootstrap into this, so it must be MIME multipart.
+# instance installs it with Miniforge (conda-forge only, no Anaconda licensing) at boot. The
+# installer is pinned and checked against the SHA-256 GitHub records for the release asset, so
+# a new upstream release can't change what runs as root. Batch merges its own ECS bootstrap into
+# this, so it must be MIME multipart.
 locals {
+  miniforge_version = "26.9.4-2"
+  miniforge_sha256  = "bbaf16b3897da24c4be50315934ba74848f617b4495982841d6a0a60e0edbbdf"
+
   user_data = <<-EOT
     Content-Type: multipart/mixed; boundary="==BOUNDARY=="
     MIME-Version: 1.0
@@ -36,7 +41,8 @@ locals {
 
     #!/bin/bash
     set -euo pipefail
-    curl -fsSL https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -o /tmp/miniconda.sh
+    curl -fsSL https://github.com/conda-forge/miniforge/releases/download/${local.miniforge_version}/Miniforge3-Linux-x86_64.sh -o /tmp/miniconda.sh
+    echo "${local.miniforge_sha256}  /tmp/miniconda.sh" | sha256sum --check -
     bash /tmp/miniconda.sh -b -p ${local.miniconda_dir}
     ${local.miniconda_dir}/bin/conda install -y awscli
     rm -f /tmp/miniconda.sh
