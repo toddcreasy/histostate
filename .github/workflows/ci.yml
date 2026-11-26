@@ -21,3 +21,40 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest
+
+  # Terraform checks with no AWS credentials: fmt and validate catch syntax and wiring, TFLint
+  # catches AWS mistakes (.tflint.hcl), Trivy fails on HIGH or CRITICAL misconfigurations;
+  # accepted ones carry a trivy:ignore comment with the reason.
+  terraform:
+    runs-on: ubuntu-latest
+    env:
+      TF_VERSION: 1.17.2
+      TF_SHA256: e6f16b2f0b137ee5729caa8c4e79a3bae4ee261acd198a1fcfa8584a6296605b
+      TFLINT_VERSION: 0.66.0
+      TFLINT_SHA256: 22be11cadc25cd02401e94c0ccc91aa63467debb8485c2a755d98f4c0a9d1e2e
+      TRIVY_VERSION: 0.76.2
+      TRIVY_SHA256: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
+      GITHUB_TOKEN: ${{ github.token }} # tflint --init downloads the AWS ruleset from GitHub
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Terraform, TFLint, Trivy (pinned, checksum verified)
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -sSfL -o tf.zip "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
+          echo "${TF_SHA256}  tf.zip" | sha256sum --check -
+          curl -sSfL -o tflint.zip "https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/tflint_linux_amd64.zip"
+          echo "${TFLINT_SHA256}  tflint.zip" | sha256sum --check -
+          curl -sSfL -o trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  trivy.tar.gz" | sha256sum --check -
+          mkdir -p bin && unzip -q -o tf.zip terraform -d bin && unzip -q -o tflint.zip tflint -d bin && tar -xzf trivy.tar.gz -C bin trivy
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - run: terraform fmt -check -recursive -diff infra/terraform
+      - name: Validate each stack
+        run: |
+          for stack in bootstrap foundation; do
+            terraform -chdir=infra/terraform/$stack init -backend=false -input=false
+            terraform -chdir=infra/terraform/$stack validate
+          done
+      - run: tflint --init --config "$PWD/.tflint.hcl"
+      - run: tflint --recursive --config "$PWD/.tflint.hcl" --chdir infra/terraform
+      - run: trivy config --severity HIGH,CRITICAL --exit-code 1 infra/terraform
