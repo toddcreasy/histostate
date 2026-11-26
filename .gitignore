@@ -19,8 +19,8 @@ dist/
 .idea/
 .DS_Store
 
-# Local notes
-TODO.md
+# Private notes, never published
+notes/
 
 # Trained model files (recreate with the stage scripts)
 models/
