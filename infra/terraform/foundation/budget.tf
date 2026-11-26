@@ -11,8 +11,10 @@ resource "aws_budgets_budget" "monthly" {
   time_unit    = "MONTHLY"
 
   cost_filter {
-    name   = "TagKeyValue"
-    values = ["user:project$${local.name}"]
+    name = "TagKeyValue"
+    # "user:<tag key>$<tag value>". Not "$${...}": that escapes to a literal "${" and the
+    # name is never filled in (ehr-rwe-eln's budget shipped that way and matches nothing).
+    values = [format("user:project$%s", local.name)]
   }
 
   cost_types {
