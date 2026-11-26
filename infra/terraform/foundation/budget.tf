@@ -12,7 +12,7 @@ resource "aws_budgets_budget" "monthly" {
 
   cost_filter {
     name   = "TagKeyValue"
-    values = ["user:project$${local.name}"]
+    values = [format("user:project$%s", local.name)]
   }
 
   cost_types {
