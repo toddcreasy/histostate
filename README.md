@@ -45,7 +45,7 @@ It is also a portfolio project:
 - **Evaluation:** a shifted validation set from a different clinical center, several seeds before
   trusting a gap, a final test scored once per model, and activation inspection that caught the
   model using stain color as a shortcut.
-- **AWS:** CDK in Python, AWS Batch with GPU and CPU queues, ECR, S3, and Nextflow.
+- **AWS:** Terraform with tests, AWS Batch with GPU and CPU queues, ECR, S3, and Nextflow.
 - **Python and CI:** uv, ruff, pytest, pre-commit, and GitHub Actions.
 
 ## Data
@@ -91,7 +91,7 @@ passed over, is in [`docs/software.md`](docs/software.md).
 | **EC2** | g4dn.xlarge (NVIDIA T4) and g5.xlarge (A10G) for GPU jobs; c6i, c7i, m6i for CPU | The smallest GPU instances. A T4 trains a 64-pixel epoch in about 10 s. Spot reclaimed both GPU instances mid-run once, so the 64-pixel runs used on-demand. |
 | **ECR** | Stores the training image | Batch pulls it with the instance's IAM (Identity and Access Management) role, so no registry login lives on the instance. |
 | **S3** | Nextflow's working files and the checkpoints and logs | Both the jobs and the laptop read and write it. `work/` expires after 30 days. |
-| **CloudFormation / CDK** | Every resource above | One CDK app in Python with tests, deployed with one command. |
+| **Terraform** (not AWS, but it builds all of the above) | Every resource above, in `infra/terraform` | State in a private, versioned S3 bucket; `terraform test` checks the stack against a mocked provider; a $100 monthly budget alerts on anything tagged `project=histostate`. |
 
 Not AWS, and why: PyTorch and MedMNIST (the model and the data), Nextflow (fans a sweep out into
 Batch jobs and retries reclaimed Spot jobs), Docker (an open standard Batch consumes), uv, ruff,
@@ -167,9 +167,10 @@ figures above, and `scripts/make_diagrams.py` redraws the two diagrams.
 
 Not needed to follow along, and it bills your AWS account. `main.nf` runs Stage 3 training on AWS
 Batch, one job per jitter and seed pair, on GPU instances (`-profile aws,gpu`) or CPU instances
-(`-profile aws,cpu`). Requires Nextflow >= 26.04, AWS credentials, the stack in `infra/aws`
-deployed, and the image pushed to ECR (Elastic Container Registry); `infra/aws/README.md` covers
-both. Copy `.env.example` to `.env` and fill it in.
+(`-profile aws,cpu`). Requires Nextflow >= 26.04 (with Java 17 or newer), AWS credentials, the
+Terraform stacks in `infra/terraform` applied, and the image pushed to ECR (Elastic Container
+Registry); [`infra/terraform/README.md`](infra/terraform/README.md) covers both and how to fill in
+`.env`.
 
 ```bash
 set -a; source .env; set +a
@@ -186,7 +187,7 @@ src/histostate/     model, augmentation, splits, and the ask command
 tests/              pytest tests, no network by default
 scripts/            one training or evaluation script per stage, plus figures
 app/                Gradio demo page around the ask command
-infra/aws/          CDK stack for AWS Batch
+infra/terraform/    Terraform for AWS: state bucket, budget, and AWS Batch
 docs/               the walkthrough, the software list, and README images
 ```
 

@@ -252,4 +252,5 @@ not how smooth the path was.
 
 Everything above runs on a laptop. `scripts/stage3_cnn.py` picks a CUDA (NVIDIA) GPU, then an
 Apple GPU (MPS), then CPU. A 64-pixel run is 60 epochs at about 10 to 13 seconds each on a GPU;
-CPU is several times slower. The AWS Batch setup in `infra/aws` is optional and bills real money.
+CPU is several times slower. The AWS Batch setup in `infra/terraform` is optional and bills real
+money.

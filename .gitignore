@@ -30,9 +30,6 @@ work/
 results/
 .nextflow/
 .nextflow.log*
-infra/aws/cdk.out/
-infra/aws/cdk.context.json
-infra/aws/cdk-outputs.json
 
 # Terraform: providers, local state, plans. The lockfile (.terraform.lock.hcl) is committed.
 .terraform/
