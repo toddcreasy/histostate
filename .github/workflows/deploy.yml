@@ -23,9 +23,12 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  # From `terraform -chdir=infra/terraform/site output`. Identifiers, not secrets.
-  ROLE_ARN: arn:aws:iam::570643734415:role/histostate-github-deploy
-  APP_ID: dpb2i46epu33c
+  # Repository variables, set from `terraform -chdir=infra/terraform/site output`, so the account
+  # ID stays out of committed files, as everywhere else in this repo:
+  #   gh variable set DEPLOY_ROLE_ARN --body "$(terraform -chdir=infra/terraform/site output -raw deploy_role_arn)"
+  #   gh variable set AMPLIFY_APP_ID --body "$(terraform -chdir=infra/terraform/site output -raw amplify_app_id)"
+  ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
+  APP_ID: ${{ vars.AMPLIFY_APP_ID }}
   BRANCH: main
 
 jobs:

@@ -1,4 +1,4 @@
-# deploy.yml needs both; they go in the workflow's env.
+# deploy.yml reads these two from repository variables DEPLOY_ROLE_ARN and AMPLIFY_APP_ID.
 output "amplify_app_id" {
   value = aws_amplify_app.site.id
 }
