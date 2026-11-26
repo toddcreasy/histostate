@@ -8,6 +8,9 @@ no trainer libraries: the point is to learn every piece, from gradient descent u
 
 *The nine tissue classes the model tells apart, three PathMNIST tiles each at 64x64 pixels.*
 
+**[Try it in your browser](https://huggingface.co/spaces/tcreasypb/histostate)**: upload a tile
+or click an example. Or run it locally:
+
 ```bash
 uv run histostate ask tile.png
 ```
