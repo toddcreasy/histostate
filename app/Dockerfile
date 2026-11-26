@@ -14,8 +14,9 @@ RUN uv sync --locked --no-dev --group app
 COPY app ./app
 COPY models ./models
 
-# Spaces run the container as user 1000.
-RUN useradd -m -u 1000 user
+# Spaces run the container as user 1000. Gradio caches examples in /app/.gradio on Spaces,
+# so /app must be writable by that user.
+RUN useradd -m -u 1000 user && chown user /app
 USER user
 
 ENV PATH="/app/.venv/bin:$PATH" GRADIO_SERVER_NAME=0.0.0.0 GRADIO_SERVER_PORT=7860

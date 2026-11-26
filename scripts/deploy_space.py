@@ -55,7 +55,7 @@ def stage(target: Path) -> None:
     (target / "models").mkdir()
     shutil.copy2(MODEL, target / "models" / MODEL.name)
     shutil.copy2(ROOT / "app" / "Dockerfile", target / "Dockerfile")
-    (target / "README.md").write_text(SPACE_README)
+    (target / "README.md").write_text(SPACE_README, encoding="utf-8")
 
 
 def main() -> None:
