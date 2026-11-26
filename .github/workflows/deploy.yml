@@ -1,0 +1,75 @@
+name: deploy
+
+# The website, on every merge to main that changes it. The Amplify app has no repository attached
+# (infra/terraform/site/amplify.tf), so this builds the static export and uploads it through the
+# Amplify deployment API, as glia-nav does.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy.yml"
+  # Deploy by hand, e.g. after a change the path filter skipped.
+  workflow_dispatch:
+
+# One deploy at a time, and never cancel one midway.
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # to assume the deploy role through GitHub's OIDC provider
+
+env:
+  AWS_REGION: us-east-1
+  # Repository variables, set from `terraform -chdir=infra/terraform/site output`, so the account
+  # ID stays out of committed files, as everywhere else in this repo:
+  #   gh variable set DEPLOY_ROLE_ARN --body "$(terraform -chdir=infra/terraform/site output -raw deploy_role_arn)"
+  #   gh variable set AMPLIFY_APP_ID --body "$(terraform -chdir=infra/terraform/site output -raw amplify_app_id)"
+  ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
+  APP_ID: ${{ vars.AMPLIFY_APP_ID }}
+  BRANCH: main
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: cd out && zip -qr ../site.zip .
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Deploy to Amplify
+        run: |
+          read -r JOB_ID UPLOAD_URL < <(
+            aws amplify create-deployment --app-id "$APP_ID" --branch-name "$BRANCH" \
+              --query '[jobId,zipUploadUrl]' --output text
+          )
+          curl --fail --silent --show-error -X PUT -T site.zip "$UPLOAD_URL"
+          aws amplify start-deployment --app-id "$APP_ID" --branch-name "$BRANCH" --job-id "$JOB_ID"
+
+          for _ in $(seq 1 60); do
+            status=$(aws amplify get-job --app-id "$APP_ID" --branch-name "$BRANCH" \
+              --job-id "$JOB_ID" --query 'job.summary.status' --output text)
+            echo "amplify job $JOB_ID: $status"
+            case "$status" in
+              SUCCEED) exit 0 ;;
+              FAILED|CANCELLED) exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "timed out waiting for amplify job $JOB_ID"
+          exit 1

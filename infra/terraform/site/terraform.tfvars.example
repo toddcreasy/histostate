@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+account_id = "123456789012"
+
+# Optional; defaults in variables.tf.
+# domain_name       = "histostate.pilotbio.io"
+# github_repository = "toddcreasy/histostate"

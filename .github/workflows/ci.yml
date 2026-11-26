@@ -51,12 +51,16 @@ jobs:
       - run: terraform fmt -check -recursive -diff infra/terraform
       - name: Validate each stack
         run: |
-          for stack in bootstrap foundation training; do
+          for stack in bootstrap foundation training site; do
             terraform -chdir=infra/terraform/$stack init -backend=false -input=false
             terraform -chdir=infra/terraform/$stack validate
           done
       # Mocked AWS provider: no credentials, no real resources.
-      - run: terraform -chdir=infra/terraform/training test
+      - name: Test stacks
+        run: |
+          for stack in training site; do
+            terraform -chdir=infra/terraform/$stack test
+          done
       - run: tflint --init --config "$PWD/.tflint.hcl"
       - run: tflint --recursive --config "$PWD/.tflint.hcl" --chdir infra/terraform
       - run: trivy config --severity HIGH,CRITICAL --exit-code 1 infra/terraform
