@@ -23,29 +23,57 @@ const EXAMPLES = [
 
 type Result = { source: string; tile: Uint8Array; predictions: Prediction[] };
 
+const LOAD_FAILED = "Could not load the model. Check your connection and try again.";
+const READ_FAILED = "Could not read that file as an image. Try a PNG or JPEG.";
+const EXAMPLE_FAILED = "Could not load that example tile. Try again.";
+
 export default function Classifier() {
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  // Each request gets a number; only the latest may change the page, so a slow photo can't
+  // overwrite the answer for a tile picked after it.
+  const latest = useRef(0);
 
-  async function run(blob: Blob, source: string) {
+  async function run(getBlob: () => Promise<Blob>, source: string) {
+    const id = ++latest.current;
     setBusy(true);
     setError(null);
+    let message: string | null = null;
     try {
-      const { classify } = await import("@/lib/model.ts");
-      setResult({ source, ...(await classify(blob)) });
+      const blob = await getBlob();
+      const model = await import("@/lib/model.ts").catch(() => null);
+      if (!model) {
+        message = LOAD_FAILED;
+      } else {
+        try {
+          const answer = await model.classify(blob);
+          if (id === latest.current) setResult({ source, ...answer });
+        } catch (e) {
+          message = e instanceof model.ModelLoadError ? LOAD_FAILED : READ_FAILED;
+        }
+      }
     } catch {
-      setError("Could not read that file as an image. Try a PNG or JPEG.");
-    } finally {
+      message = EXAMPLE_FAILED;
+    }
+    if (id === latest.current) {
+      setError(message);
       setBusy(false);
     }
   }
 
-  async function runExample(file: string, label: string) {
-    const response = await fetch(`/examples/${file}`);
-    await run(await response.blob(), `Example: ${label.toLowerCase()}`);
+  function runExample(file: string, label: string) {
+    return run(async () => {
+      const response = await fetch(`/examples/${file}`);
+      if (!response.ok) throw new Error(`${response.status}`);
+      return response.blob();
+    }, `Example: ${label.toLowerCase()}`);
+  }
+
+  function runFile(file: File) {
+    return run(async () => file, file.name);
   }
 
   return (
@@ -65,7 +93,7 @@ export default function Classifier() {
           e.preventDefault();
           setDragging(false);
           const file = e.dataTransfer.files[0];
-          if (file) run(file, file.name);
+          if (file) runFile(file);
         }}
         className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-5 text-center text-sm transition-colors ${
           dragging ? "border-accent bg-accent/5" : "border-line hover:border-accent/60"
@@ -80,7 +108,7 @@ export default function Classifier() {
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) run(file, file.name);
+            if (file) runFile(file);
             e.target.value = "";
           }}
         />

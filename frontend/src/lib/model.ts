@@ -24,6 +24,10 @@ export const SIZE = 64;
 
 export type Prediction = { tissue: (typeof TISSUES)[number]; probability: number };
 
+// Which step failed, so the page can say "couldn't load the model" or "couldn't read that file".
+export class ModelLoadError extends Error {}
+export class ImageReadError extends Error {}
+
 let session: Promise<ort.InferenceSession> | null = null;
 
 function load(): Promise<ort.InferenceSession> {
@@ -31,31 +35,50 @@ function load(): Promise<ort.InferenceSession> {
     // The bundler serves ONNX Runtime's WebAssembly engine from this site, not a CDN. One
     // thread: more need cross-origin isolation headers, and this model is small.
     ort.env.wasm.numThreads = 1;
-    session = ort.InferenceSession.create("/model/stage3_cnn.onnx");
+    session = ort.InferenceSession.create("/model/stage3_cnn.onnx").catch((error) => {
+      session = null; // a network blip shouldn't break the page until a reload
+      throw new ModelLoadError(String(error));
+    });
   }
   return session;
 }
 
-// Pixels at the file's own size, with no color profile applied, as Pillow reads them. Like
-// Image.convert("RGB"), transparency is dropped rather than blended.
+// Safari refuses canvases over 16,777,216 pixels, and a phone photo can be bigger, so the
+// pixels are read in horizontal strips under that size.
+const MAX_CANVAS_PIXELS = 16_000_000;
+
+// Pixels at the file's own size, as Pillow reads them in ask.py: no color profile applied, no
+// EXIF rotation (Image.open doesn't rotate either), and like Image.convert("RGB"),
+// transparency dropped rather than blended.
 async function decode(blob: Blob): Promise<{ rgb: Uint8Array; width: number; height: number }> {
-  const bitmap = await createImageBitmap(blob, {
-    colorSpaceConversion: "none",
-    premultiplyAlpha: "none",
-  });
-  const { width, height } = bitmap;
-  const canvas = new OffscreenCanvas(width, height);
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("This browser cannot read image pixels.");
-  context.drawImage(bitmap, 0, 0);
-  bitmap.close();
-  const rgba = context.getImageData(0, 0, width, height).data;
-  const rgb = new Uint8Array(width * height * 3);
-  for (let i = 0, j = 0; i < rgba.length; i += 4, j += 3) {
-    rgb[j] = rgba[i];
-    rgb[j + 1] = rgba[i + 1];
-    rgb[j + 2] = rgba[i + 2];
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(blob, {
+      colorSpaceConversion: "none",
+      premultiplyAlpha: "none",
+      imageOrientation: "none",
+    });
+  } catch (error) {
+    throw new ImageReadError(String(error));
   }
+  const { width, height } = bitmap;
+  const rgb = new Uint8Array(width * height * 3);
+  const stripRows = Math.max(1, Math.floor(MAX_CANVAS_PIXELS / width));
+  const canvas = new OffscreenCanvas(width, Math.min(stripRows, height));
+  const context = canvas.getContext("2d");
+  if (!context) throw new ImageReadError("This browser cannot read image pixels.");
+  for (let top = 0; top < height; top += stripRows) {
+    const rows = Math.min(stripRows, height - top);
+    context.clearRect(0, 0, width, rows);
+    context.drawImage(bitmap, 0, top, width, rows, 0, 0, width, rows);
+    const rgba = context.getImageData(0, 0, width, rows).data;
+    for (let i = 0, j = top * width * 3; i < rgba.length; i += 4, j += 3) {
+      rgb[j] = rgba[i];
+      rgb[j + 1] = rgba[i + 1];
+      rgb[j + 2] = rgba[i + 2];
+    }
+  }
+  bitmap.close();
   return { rgb, width, height };
 }
 
