@@ -31,6 +31,40 @@ Applies run from a laptop. CI's `terraform` job runs `fmt`, `validate`, TFLint, 
 pull request, with no AWS credentials. A Trivy finding that is a deliberate choice gets a
 `# trivy:ignore:<ID> <reason>` comment above the resource.
 
+## Train on AWS
+
+Needs the three stacks applied, AWS credentials (`aws sso login`), Docker, and Nextflow >= 26.04
+with Java 17 or newer.
+
+GPU jobs also need EC2 quota for G instances: Batch cannot launch one while "All G and VT Spot
+Instance Requests" (Spot) or "Running On-Demand G and VT instances" (on-demand) is 0. Check with
+`aws service-quotas get-service-quota --service-code ec2 --quota-code L-3819A6DF` (on-demand:
+`L-DB2E81BA`). Both were 8 on 2026-10-22, so `gpu_max_vcpus` is 8: two 4 vCPU GPU jobs at once.
+
+Write `.env` (gitignored) from the stack's outputs, then add the image:
+
+```sh
+terraform -chdir=infra/terraform/training output -raw env > .env
+echo "HISTOSTATE_IMAGE=$(terraform -chdir=infra/terraform/training output -raw ecr_repository_url):$(git rev-parse --short HEAD)" >> .env
+```
+
+Build and push from the repo root. Batch instances are x86_64, so build for `linux/amd64` even on
+Apple Silicon. The tag is the git commit, so each run records which code it trained; tags are
+immutable, so a commit is pushed once.
+
+```sh
+set -a; source .env; set +a
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${HISTOSTATE_IMAGE%%/*}
+docker buildx build --platform linux/amd64 -t $HISTOSTATE_IMAGE --push .
+nextflow run main.nf -profile aws,cpu --epochs 1 --size 28 --outdir s3://<bucket>/results/smoke   # a few minutes, a few cents
+```
+
+For a GPU run that can't survive a Spot reclaim, set `AWS_BATCH_GPU_QUEUE=histostate-gpu-ondemand`.
+
+Idle cost is close to zero: no NAT gateway, and every compute environment scales to 0 vCPUs. What
+bills between runs is S3 storage under `results/` (`work/` expires after 30 days) and the images in
+ECR (10 newest kept).
+
 ## How the state bucket was made
 
 The bucket can't hold its own state before it exists. `bootstrap/` was applied once with local

@@ -116,7 +116,7 @@ s.append(
         560,
         440,
         "AWS (optional, for sweeps)",
-        "One stack in us-east-1, deployed with the CDK. Billed only while jobs run.",
+        "Built with Terraform in us-east-1. Billed only while jobs run.",
     )
 )
 s.append(
@@ -212,11 +212,12 @@ s += [
         NW,
         NH,
         "ops",
-        "cdk deploy",
-        "infra/aws, in Python",
-        "The AWS CDK describes the stack in Python, with tests, and deploys it through "
-        "CloudFormation in one command.",
-        "https://docs.aws.amazon.com/cdk/v2/guide/home.html",
+        "terraform apply",
+        "infra/terraform",
+        "Terraform describes every AWS resource in three stacks (bootstrap, foundation, "
+        "training), checked by terraform test against a mocked provider, and applies a plan "
+        "only after it is reviewed.",
+        "https://developer.hashicorp.com/terraform/intro",
     ),
     node(
         LR,
@@ -273,11 +274,12 @@ s += [
         NW,
         NH,
         "ops",
-        "CloudFormation",
-        "HistostateBatchStack",
-        "Creates the compute environments, job queues, launch templates, and S3 bucket from "
-        "the CDK app. Uses the account's default VPC.",
-        "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html",
+        "Terraform state",
+        "S3, one file per stack",
+        "What Terraform created, kept in a versioned, private S3 bucket so the next plan "
+        "knows what exists. A $100 monthly budget alerts on everything tagged "
+        "project=histostate. Batch uses the account's default VPC.",
+        "https://developer.hashicorp.com/terraform/language/backend/s3",
     ),
     node(
         AR,
@@ -297,7 +299,7 @@ s += [
     arrow([(AL + NW, mid[0]), (AR, mid[0])], "start", "", AL + NW + 8, mid[0] - 6),
     arrow([(LR + NW, mid[1]), (AR, mid[1])], "push image", "", LR + NW + 12, mid[1] - 6),
     arrow([(AR + NW / 2, R[1]), (AR + NW / 2, R[0] + NH)], "pull", "", AR + NW / 2 + 6, R[1] - 16),
-    arrow([(LR + NW, mid[2]), (AL, mid[2])], "deploy", "", LR + NW + 12, mid[2] - 6),
+    arrow([(LR + NW, mid[2]), (AL, mid[2])], "apply", "", LR + NW + 12, mid[2] - 6),
     arrow(
         [(AR + NW, mid[0]), (AR + NW + 15, mid[0]), (AR + NW + 15, mid[3]), (AR + NW, mid[3])],
         "checkpoint + log",
