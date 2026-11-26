@@ -33,18 +33,21 @@ pull request, with no AWS credentials. A Trivy finding that is a deliberate choi
 
 ## Train on AWS
 
-Needs the three stacks applied, AWS credentials (`aws sso login`), Docker, and Nextflow >= 26.04
-with Java 17 or newer.
+Needs the three stacks applied, AWS credentials (`aws sso login`, single sign-on), Docker, and
+Nextflow >= 26.04 with Java 17 or newer.
 
-GPU jobs also need EC2 quota for G instances: Batch cannot launch one while "All G and VT Spot
-Instance Requests" (Spot) or "Running On-Demand G and VT instances" (on-demand) is 0. Check with
+GPU jobs also need EC2 (Elastic Compute Cloud) quota for G instances: Batch cannot launch one while
+"All G and VT Spot Instance Requests" (Spot) or "Running On-Demand G and VT instances" (on-demand)
+is 0. Check with
 `aws service-quotas get-service-quota --service-code ec2 --quota-code L-3819A6DF` (on-demand:
-`L-DB2E81BA`). Both were 8 on 2026-10-22, so `gpu_max_vcpus` is 8: two 4 vCPU GPU jobs at once.
+`L-DB2E81BA`). Both were 8 vCPUs (virtual CPUs) on 2026-10-22, so `gpu_max_vcpus` is 8: two 4 vCPU
+GPU jobs at once.
 
-Write `.env` (gitignored) from the stack's outputs, then add the image:
+Write `.env` (gitignored) from the stack's outputs, then add the image. `output -raw` ends without
+a newline, so `printf` adds one before the second line is appended:
 
 ```sh
-terraform -chdir=infra/terraform/training output -raw env > .env
+printf '%s\n' "$(terraform -chdir=infra/terraform/training output -raw env)" > .env
 echo "HISTOSTATE_IMAGE=$(terraform -chdir=infra/terraform/training output -raw ecr_repository_url):$(git rev-parse --short HEAD)" >> .env
 ```
 
@@ -61,7 +64,8 @@ nextflow run main.nf -profile aws,cpu --epochs 1 --size 28 --outdir s3://<bucket
 
 For a GPU run that can't survive a Spot reclaim, set `AWS_BATCH_GPU_QUEUE=histostate-gpu-ondemand`.
 
-Idle cost is close to zero: no NAT gateway, and every compute environment scales to 0 vCPUs. What
+Idle cost is close to zero: no NAT (network address translation) gateway, and every compute
+environment scales to 0 vCPUs. What
 bills between runs is S3 storage under `results/` (`work/` expires after 30 days) and the images in
 ECR (10 newest kept).
 
