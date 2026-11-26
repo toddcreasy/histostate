@@ -88,3 +88,21 @@ jobs:
         run: $RUNNER_TEMP/gitleaks git . --config .gitleaks.toml --redact --no-banner --verbose
       - name: Scan the files at this commit
         run: $RUNNER_TEMP/gitleaks dir . --config .gitleaks.toml --redact --no-banner --verbose
+
+  # The website: lint, the resize-matches-Pillow test, and a static build.
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

@@ -28,6 +28,10 @@ from histostate.softmax import softmax
 
 logger = logging.getLogger(__name__)
 
+# The tile size the website resizes to. A model trained at another size needs SIZE changed in
+# frontend/src/lib/model.ts and frontend/src/app/classifier.tsx too.
+SITE_SIZE = 64
+
 
 class PixelsToProbabilities(nn.Module):
     def __init__(self, model: CNN, mean: torch.Tensor, std: torch.Tensor):
@@ -58,6 +62,11 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     wrapped, size = load(args.model)
+    if size != SITE_SIZE:
+        raise SystemExit(
+            f"{args.model} was trained on {size}-pixel tiles, but the website resizes to "
+            f"{SITE_SIZE} (SIZE in frontend/src/lib/model.ts and frontend/src/app/classifier.tsx)"
+        )
     # A batch of 2: the exporter treats an example batch of 1 as fixed, not dynamic.
     example = torch.zeros(2, size, size, 3)
     torch.onnx.export(
