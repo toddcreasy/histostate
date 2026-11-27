@@ -1,6 +1,6 @@
 [project]
 name = "histostate"
-version = "0.1.0"
+version = "0.2.0"
 description = "Name the tissue type in a colorectal H&E image with a small CNN trained from scratch."
 readme = "README.md"
 license = "Apache-2.0"
