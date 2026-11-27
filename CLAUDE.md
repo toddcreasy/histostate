@@ -68,8 +68,11 @@ Direct. Evidence-first. Skip preamble.
 | Lint + format | ruff | One binary, milliseconds, so checks never feel optional. |
 | Tests | pytest | The standard runner. Every STOP gate needs a runnable proof. |
 | Config | pydantic-settings | Typed settings from env vars; bad config fails at startup, not deep in a call. |
-| Pre-commit | pre-commit | Runs ruff before each commit so broken code never lands. |
-| CI | GitHub Actions | Lives beside the code, free tier covers a personal project. |
+| Pre-commit | pre-commit | Runs ruff and gitleaks before each commit so broken code and secrets never land. |
+| Secret scan | gitleaks | Scans every commit and file, with the rules in `.gitleaks.toml`; the repo is public. |
+| CI | GitHub Actions | Lives beside the code, free for a public repo. Required jobs: `lint-test`, `secrets`, `terraform`, `frontend`. |
+| Infrastructure | Terraform, with TFLint and Trivy | Every AWS resource, in `infra/terraform`; the same layout as ehr-rwe-eln. A plan shows each change before it happens. |
+| Website | Next.js, ONNX Runtime Web | Static site in `frontend/`, same setup as glia-nav; the model runs in the browser, so there is no server. |
 
 ## Repository layout
 
@@ -85,11 +88,17 @@ have a technical reason and breaking them causes real bugs. Others are habit.
 ├── .python-version           pins the interpreter
 ├── .env.example              every environment variable the app reads, with no values
 ├── .pre-commit-config.yaml   checks that run before each commit
+├── .gitleaks.toml            secret-scan rules, for pre-commit and CI
+├── .tflint.hcl               Terraform lint rules
+├── Dockerfile                the training image AWS Batch runs
+├── main.nf, nextflow.config  the Nextflow pipeline that sends training runs to AWS Batch
 ├── src/histostate/           the application code
 ├── tests/                    tests for it
 ├── scripts/                  one-shot operational scripts
+├── frontend/                 the website (Next.js), with its own tests
+├── infra/terraform/          every AWS resource, one Terraform stack per folder
 ├── docs/                     long-form documentation
-└── .github/workflows/        CI: what runs on every push
+└── .github/workflows/        CI on every push and pull request; deploy.yml deploys the site
 ```
 
 ### The ones with a real technical reason
@@ -215,7 +224,8 @@ and it would disappear along with the tool.
 
 ### Directories to add only when needed
 
-The template leaves these out. Add each one the day the project needs it, not before.
+The template leaves these out. Add each one the day the project needs it, not before. This project
+has needed `frontend/` (since 2026-11-26, for the website) and `infra/` (for Terraform).
 
 | Directory | When it appears | Why it sits outside `src/` |
 |---|---|---|

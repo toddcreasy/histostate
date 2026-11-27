@@ -90,16 +90,17 @@ def arrow(points, label="", note="", lx=None, ly=None, anchor="start"):
 
 
 # Architecture: laptop, AWS, data and evaluation, quality checks.
-W, H = 1240, 880
+W, H = 1240, 990
 LL, LR, AL, AR, NW = 70, 340, 670, 950, 220
-R = [80, 190, 300, 400]
+R = [80, 190, 300, 400, 510]
 NH = 56
 mid = [r + NH // 2 for r in R]
 s = header(
     W,
     H,
     "histostate: how the tissue classifier is trained and checked",
-    "Training runs on a laptop or, for sweeps, as AWS Batch jobs launched by Nextflow. "
+    "Training runs on a laptop or, for sweeps, as AWS Batch jobs launched by Nextflow. The "
+    "website runs the model in the visitor's browser, served by Amplify. "
     "PathMNIST comes from Zenodo; the test set from a second clinical center is split into "
     "shift-val for tuning and a final test scored once.",
 )
@@ -108,28 +109,31 @@ s.append(
     '<text x="130" y="26" class="s">Dashed boxes are outside AWS. '
     "Open the SVG on its own and hover a box for what it does and why.</text>"
 )
-s.append(panel(40, 40, 560, 440, "Laptop", "Every stage runs here. AWS is only for sweeps."))
+s.append(
+    panel(40, 40, 560, 550, "Laptop", "Every stage runs here. AWS runs sweeps and hosts the site.")
+)
 s.append(
     panel(
         640,
         40,
         560,
-        440,
-        "AWS (optional, for sweeps)",
-        "Built with Terraform in us-east-1. Billed only while jobs run.",
+        550,
+        "AWS",
+        "Built with Terraform in us-east-1. Training bills only while jobs run; the site is "
+        "static files.",
     )
 )
 s.append(
     panel(
         40,
-        500,
+        610,
         1160,
         230,
         "Data and evaluation",
         "Where the tiles come from and which split answers which question.",
     )
 )
-s.append(panel(40, 750, 1160, 110, "Quality checks", "What runs before code reaches main."))
+s.append(panel(40, 860, 1160, 110, "Quality checks", "What runs before code reaches main."))
 
 s += [
     node(
@@ -293,6 +297,60 @@ s += [
         "logs under results/. Encrypted, public access blocked.",
         "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
     ),
+    node(
+        LL,
+        R[4],
+        NW,
+        NH,
+        "ml",
+        "frontend/",
+        "Next.js, npm run dev",
+        "The website. scripts/export_onnx.py writes the model as ONNX, checked against PyTorch on "
+        "all 7,180 test tiles; the browser's resize matches Pillow byte for byte.",
+        REPO + "frontend/README.md",
+    ),
+    node(
+        LR,
+        R[4],
+        NW,
+        NH,
+        "ops",
+        "git push",
+        "pull request, merge to main",
+        "A merge to main that touches frontend/ starts the deploy workflow: GitHub Actions builds "
+        "the static site and uploads it to Amplify through an OIDC role that only main of this "
+        "repository can assume. No AWS keys are stored in GitHub.",
+        "https://github.com/toddcreasy/histostate/blob/main/.github/workflows/deploy.yml",
+    ),
+    node(
+        AL,
+        R[4],
+        NW,
+        NH,
+        "compute",
+        "Amplify Hosting",
+        "histostate.pilotbio.io",
+        "Serves the site's static files with HTTPS, security headers, and a Content-Security-"
+        "Policy. The model runs in the visitor's browser, so there is no server.",
+        "https://histostate.pilotbio.io",
+    ),
+    node(
+        AR,
+        R[4],
+        NW,
+        NH,
+        "ops",
+        "Route 53",
+        "the site's DNS zone",
+        "The histostate.pilotbio.io zone, delegated from the parent domain. Amplify keeps its "
+        "certificate and alias records here.",
+        "https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html",
+    ),
+]
+s += [
+    arrow([(LL + NW, mid[4]), (LR, mid[4])], "commit", "", LL + NW + 8, mid[4] - 6),
+    arrow([(LR + NW, mid[4]), (AL, mid[4])], "Actions deploy", "", LR + NW + 12, mid[4] - 6),
+    arrow([(AR, mid[4]), (AL + NW, mid[4])], "name", "", AL + NW + 8, mid[4] - 6),
 ]
 s += [
     arrow([(LR + NW, mid[0]), (AL, mid[0])], "submit jobs", "", LR + NW + 12, mid[0] - 6),
@@ -314,7 +372,7 @@ s += [
 
 # Data and evaluation row.
 C = [60, 290, 520, 750, 980]
-DW, RA, RB = 190, 540, 630
+DW, RA, RB = 190, 650, 740
 ma, mb = RA + NH // 2, RB + NH // 2
 s += [
     node(
@@ -437,7 +495,7 @@ s += [
 ]
 
 # Quality checks row.
-RQ = 785
+RQ = 895
 mq = RQ + NH // 2
 s += [
     node(
@@ -447,8 +505,8 @@ s += [
         NH,
         "ops",
         "pre-commit",
-        "ruff before each commit",
-        "Lint and format run before a commit lands.",
+        "ruff, gitleaks before a commit",
+        "Lint, format, and a secret scan run before a commit lands.",
         "https://pre-commit.com/",
     ),
     node(
@@ -459,7 +517,8 @@ s += [
         "outside",
         "GitHub",
         "pull request to main",
-        "main is protected: every change arrives as a pull request and is squash-merged.",
+        "main is protected: every change arrives as a pull request, and merges only after the "
+        "required checks pass, with owner approval.",
         "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/"
         "managing-protected-branches/about-protected-branches",
     ),
@@ -470,8 +529,11 @@ s += [
         NH,
         "ops",
         "GitHub Actions",
-        "uv sync --locked, ruff, pytest",
-        "CI on every pull request. --locked fails if pyproject.toml and uv.lock disagree.",
+        "four required jobs",
+        "Four required jobs on every pull request. lint-test: uv sync --locked, ruff, pytest. "
+        "secrets: gitleaks over every commit. terraform: fmt, validate, tests, TFLint, Trivy. "
+        "frontend: the site's lint, test, and build. Merges to main that touch frontend/ deploy "
+        "the site.",
         "https://docs.github.com/actions",
     ),
     node(
@@ -486,9 +548,22 @@ s += [
         "augmentation, splits, the model shapes, and the ask command.",
         "https://docs.pytest.org/en/stable/",
     ),
+    node(
+        C[4],
+        RQ,
+        DW,
+        NH,
+        "ops",
+        "terraform test, npm test",
+        "infra and site, no AWS calls",
+        "Terraform stacks checked against a mocked provider (bucket policies, queue names, the "
+        "deploy role's trust, the CSP); the browser's resize checked against Pillow.",
+        REPO + "infra/terraform/README.md",
+    ),
     arrow([(C[0] + DW, mq), (C[1], mq)]),
     arrow([(C[1] + DW, mq), (C[2], mq)]),
     arrow([(C[2] + DW, mq), (C[3], mq)]),
+    arrow([(C[3] + DW, mq), (C[4], mq)]),
 ]
 s.append("</svg>")
 (OUT / "architecture.svg").write_text("\n".join(s) + "\n")
