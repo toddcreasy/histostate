@@ -100,7 +100,12 @@ export default function Home() {
               </a>
               <h3 className="mt-4 font-bold text-ink">{title}</h3>
               <p className="mt-2 flex-1 text-sm leading-relaxed text-text">{body}</p>
-              <a className="mt-3 text-sm font-semibold text-accent hover:underline" href={link}>
+              <a
+                className="mt-3 text-sm font-semibold text-accent hover:underline"
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Read this step in the walkthrough
               </a>
             </article>
