@@ -75,6 +75,10 @@ export default function Home() {
               >
                 Software
               </a>
+              {/* The README's diagram, interactive: hover a box, click for its docs or source. */}
+              <a className="underline decoration-accent decoration-2 underline-offset-4" href="/diagrams/architecture.svg">
+                Architecture
+              </a>
             </nav>
           </div>
           <Classifier />

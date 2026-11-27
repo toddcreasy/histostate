@@ -8,6 +8,8 @@ on:
     branches: [main]
     paths:
       - "frontend/**"
+      # The site serves the README's diagrams (frontend/scripts/copy-diagrams.mjs).
+      - "docs/*.svg"
       - ".github/workflows/deploy.yml"
   # Deploy by hand, e.g. after a change the path filter skipped.
   workflow_dispatch:
