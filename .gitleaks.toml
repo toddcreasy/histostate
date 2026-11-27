@@ -44,9 +44,9 @@ secretGroup = 1
 keywords = ["password", "passwd", "pwd", "secret"]
 
   [[rules.allowlists]]
-  description = "An environment variable's name, not its value (a list of names such as DB_PASSWORD, LOG_LEVEL)"
+  description = "An environment variable's name, not its value (a list of names such as DB_PASSWORD, LOG_LEVEL). Names need an underscore, so an all-caps secret such as a base32 key is still caught"
   regexTarget = "secret"
-  regexes = ['''^[A-Z][A-Z0-9_]+$''']
+  regexes = ['''^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$''']
 
 [[rules]]
 id = "password-env"
@@ -72,6 +72,17 @@ keywords = ["://"]
 [[rules]]
 id = "username-assignment"
 description = "A username assigned a literal value"
-regex = '''(?i)\b(?:user(?:name)?|login|db_user)["']?\s*[:=]\s*["']([^"'\s]{3,})["']'''
+# No word boundary before the keyword, and any prefix: POSTGRES_USER and db_username must match.
+# Nothing after it, so user_id and user_agent don't. Spaces and tabs only around the separator.
+regex = '''(?i)[a-z_]*(?:user(?:name)?|login)["']?[ \t]*[:=][ \t]*["']([^"'\s]{3,})["']'''
+secretGroup = 1
+keywords = ["user", "login"]
+
+[[rules]]
+id = "username-env"
+description = "A username set unquoted in an env file, YAML, or shell: POSTGRES_USER=value"
+# The same files as password-env. $VAR and ${{ ... }} are references, not values, so they're skipped.
+path = '''(?i)(?:^|/)(?:\.env[^/]*|[^/]*\.(?:env|ya?ml|ini|cfg|conf|properties|sh|bash|zsh|md|txt)|Dockerfile[^/]*)$'''
+regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z_]*(?:user(?:name)?|login)[ \t]*[=:][ \t]*([^\s"'#$`|{]{3,})'''
 secretGroup = 1
 keywords = ["user", "login"]
