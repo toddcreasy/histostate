@@ -53,6 +53,26 @@ run "responses_force_https" {
   }
 }
 
+run "pages_run_only_this_sites_code" {
+  command = plan
+  assert {
+    condition = (
+      strcontains(aws_amplify_app.site.custom_headers, "Content-Security-Policy") &&
+      strcontains(aws_amplify_app.site.custom_headers, "default-src 'self'") &&
+      strcontains(aws_amplify_app.site.custom_headers, "frame-ancestors 'none'")
+    )
+    error_message = "Every response must carry a Content-Security-Policy limited to this site's own files."
+  }
+}
+
+run "missing_pages_are_rewritten_not_redirected" {
+  command = plan
+  assert {
+    condition     = one([for r in aws_amplify_app.site.custom_rule : r.status if r.target == "/404.html"]) == "404-200"
+    error_message = "The 404 rule must rewrite to /404.html (404-200), not redirect to it."
+  }
+}
+
 run "only_main_of_this_repo_can_deploy" {
   command = plan
   assert {
