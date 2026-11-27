@@ -64,10 +64,8 @@ export default function Home() {
                 </div>
               ))}
             </dl>
+            {/* The source is the GitHub icon in the header. */}
             <nav className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold">
-              <a className="underline decoration-accent decoration-2 underline-offset-4" href={REPO}>
-                Source on GitHub
-              </a>
               <a className="underline decoration-accent decoration-2 underline-offset-4" href={WALKTHROUGH}>
                 Walkthrough
               </a>
