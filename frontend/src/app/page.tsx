@@ -1,4 +1,5 @@
 import Classifier from "./classifier";
+import Released, { Dot } from "./released";
 
 const REPO = "https://github.com/toddcreasy/histostate";
 const WALKTHROUGH = `${REPO}/blob/main/docs/walkthrough.md`;
@@ -98,17 +99,36 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto max-w-6xl space-y-2 px-4 py-8 text-xs leading-relaxed text-muted sm:px-6">
-          <p className="font-semibold text-text">
-            A learning project, not a medical device. Not for clinical or diagnostic use.
+      {/* Same layout as glia-nav's footer: the disclaimer, then license, source, and release. */}
+      <footer className="border-t border-line bg-card">
+        <div className="mx-auto max-w-6xl space-y-2 px-4 py-4 text-[13px] text-muted sm:px-6">
+          <p>
+            A learning project, not a medical device. Nothing here is for clinical or diagnostic
+            use.
           </p>
           <p>
-            Data: PathMNIST from MedMNIST (Yang et al., Scientific Data, 2023), built from NCT-CRC-HE-100K
-            and CRC-VAL-HE-7K (Kather et al., PLOS Medicine, 2019), CC BY 4.0. Code: Apache-2.0.
+            Data: PathMNIST from MedMNIST (Yang et al., Scientific Data, 2023), built from
+            NCT-CRC-HE-100K and CRC-VAL-HE-7K (Kather et al., PLOS Medicine, 2019), CC BY 4.0.
           </p>
-          <p>
-            histostate {process.env.VERSION}, released {process.env.RELEASED}.
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <a
+              href={`${REPO}/blob/main/LICENSE`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-ink underline-offset-4 hover:underline"
+            >
+              Apache 2.0 license
+            </a>
+            <Dot />
+            <a
+              href={REPO}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-ink underline-offset-4 hover:underline"
+            >
+              Source on GitHub
+            </a>
+            <Released />
           </p>
         </div>
       </footer>
