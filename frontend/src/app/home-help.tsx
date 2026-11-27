@@ -54,7 +54,7 @@ export function ClassifierHelp() {
       <p>
         Your image is shrunk to <strong>64x64 pixels</strong> the same way{" "}
         <code className="text-ink">histostate ask</code> does it, and the model runs in your browser
-        with ONNX Runtime Web. Nothing is uploaded.
+        with ONNX (Open Neural Network Exchange) Runtime Web. Nothing is uploaded.
       </p>
       <p>
         The tile on the left is exactly what the model sees. The percentages are its probabilities

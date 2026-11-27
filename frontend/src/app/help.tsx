@@ -84,7 +84,8 @@ export function HelpProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
-  const open = active === undefined ? launch : active !== null;
+  // At launch, only a page with its own note opens the panel; a 404 page has none.
+  const open = active === undefined ? launch && notes.has(PAGE) : active !== null;
   const wanted = !open ? null : active && active.path === path ? active.id : PAGE;
   const shown = wanted === null ? null : notes.has(wanted) ? wanted : notes.has(PAGE) ? PAGE : null;
 
@@ -98,9 +99,13 @@ export function HelpProvider({ children }: { children: ReactNode }) {
   };
 
   // The page makes room for the panel (globals.css, .help-panel-open).
+  // The script in layout.tsx may already have made room before paint; with no panel, give it back.
   useEffect(() => {
-    if (!open) return;
     const html = document.documentElement;
+    if (!open) {
+      html.classList.remove("help-panel-open");
+      return;
+    }
     html.classList.add("help-panel-open");
     return () => html.classList.remove("help-panel-open");
   }, [open]);
