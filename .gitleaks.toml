@@ -54,9 +54,14 @@ description = "A password, secret, token, or key set in an env file or YAML: DB_
 # Env files, YAML, shell, config, and Markdown only: in code, NAME=value is usually not a literal.
 path = '''(?i)(?:^|/)(?:\.env[^/]*|[^/]*\.(?:env|ya?ml|ini|cfg|conf|properties|sh|bash|zsh|md|txt)|Dockerfile[^/]*)$'''
 # At a line's start or after a space or ";", so -e POSTGRES_PASSWORD=value in a command counts.
-regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z_]*(?:password|passwd|pwd|secret|token|api_key)[a-z_]*[ \t]*[=:][ \t]*([^\s"'#$`|]{3,})'''
+regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z0-9_.-]*(?:password|passwd|pwd|secret|token|api_key)[a-z0-9_.-]*[ \t]*[=:][ \t]*([^\s"'#$`|]{3,})'''
 secretGroup = 1
 keywords = ["password", "passwd", "pwd", "secret", "token", "api_key"]
+
+  [[rules.allowlists]]
+  description = "GitHub Actions' id-token permission (id-token: write), which lets a workflow ask for an OIDC token; not a token itself"
+  regexTarget = "match"
+  regexes = ['''id-token:[ \t]*(?:write|read|none)[,}]*$''']
 
 [[rules]]
 id = "url-credentials"
@@ -78,11 +83,61 @@ regex = '''(?i)[a-z_]*(?:user(?:name)?|login)["']?[ \t]*[:=][ \t]*["']([^"'\s]{3
 secretGroup = 1
 keywords = ["user", "login"]
 
+  [[rules.allowlists]]
+  description = "Docker's numeric user, quoted (user: \"1000:1000\"), a uid and gid rather than a login"
+  regexTarget = "match"
+  regexes = ['''(?i)(?:^|[ \t])user[ \t]*:[ \t]*["']\d+(?::\d+)?["']$''']
+
 [[rules]]
 id = "username-env"
 description = "A username set unquoted in an env file, YAML, or shell: POSTGRES_USER=value"
-# The same files as password-env. $VAR and ${{ ... }} are references, not values, so they're skipped.
-path = '''(?i)(?:^|/)(?:\.env[^/]*|[^/]*\.(?:env|ya?ml|ini|cfg|conf|properties|sh|bash|zsh|md|txt)|Dockerfile[^/]*)$'''
-regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z_]*(?:user(?:name)?|login)[ \t]*[=:][ \t]*([^\s"'#$`|{]{3,})'''
+# An inline user:password pair (curl -u svc_user:Pa55word) is not a key and value, so it isn't
+# this rule's to catch; a colon counts as a separator only with whitespace after it, as in YAML.
+# Config and shell files; not .md or .txt, where prose says things like "Login: use SSO". Keys may
+# hold dots, hyphens, and digits (spring.datasource.username, db-user, PG2_USER). $VAR and ${{ }}
+# are references, not values, so they're skipped.
+path = '''(?i)(?:^|/)(?:\.env[^/]*|[^/]*\.(?:env|ya?ml|ini|cfg|conf|properties|sh|bash|zsh)|Dockerfile[^/]*)$'''
+regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z0-9_.-]*(?:user(?:name)?|login)(?:[ \t]*=[ \t]*|[ \t]*:[ \t]+)([^\s"'#$`|{]{3,})'''
 secretGroup = 1
 keywords = ["user", "login"]
+
+  [[rules.allowlists]]
+  description = "Settings, not usernames (auto_login: true), and system accounts that aren't credentials"
+  regexTarget = "secret"
+  regexes = ['''(?i)^(?:true|false|yes|no|on|off|null|none|root|nobody)$''']
+
+  [[rules.allowlists]]
+  description = "Docker's numeric user (user: 1000 or 1000:1000), a uid and gid rather than a login"
+  regexTarget = "match"
+  regexes = ['''(?i)(?:^|[ \t])user[ \t]*:[ \t]*\d+(?::\d+)?$''']
+
+[[rules]]
+id = "username-env-docs"
+description = "A username in a shell-style assignment inside Markdown or text: export DB_USER=value"
+# username-env leaves .md and .txt alone because prose says things like "Login: use SSO". Shell
+# lines in docs still count: an all-caps key ending in USER, USERNAME, or LOGIN, then = with no
+# spaces. $VAR and ${{ }} are references, not values, so they're skipped.
+path = '''(?i)(?:^|/)[^/]*\.(?:md|txt)$'''
+regex = '''(?m)(?:^|[ \t;])(?:export[ \t]+)?(?:[A-Z][A-Z0-9_]*)?(?:USER|USERNAME|LOGIN)=([^\s"'#$`|{]{3,})'''
+secretGroup = 1
+keywords = ["user=", "username=", "login="]
+
+  [[rules.allowlists]]
+  description = "A path, not a username (R_LIBS_USER=~/R/library or ./r-lib): a value that starts like one. scott/tiger and scott/tiger@orcl, Oracle's user/password forms, are still caught"
+  regexTarget = "secret"
+  regexes = ['''^(?:~|\.{0,2}/)''']
+
+[[rules]]
+id = "username-props"
+description = "A username in a .properties, .ini, .cfg, or .conf file, where key:value needs no space: db.user:jsmith"
+# These formats allow a bare colon as well as =, unlike YAML. The key starts the line, so text
+# further along a line isn't read as a key.
+path = '''(?i)(?:^|/)[^/]*\.(?:ini|cfg|conf|properties)$'''
+regex = '''(?im)^[ \t]*[a-z0-9_.-]*(?:user(?:name)?|login)[ \t]*[:=][ \t]*([^\s"'#$`|{]{3,})'''
+secretGroup = 1
+keywords = ["user", "login"]
+
+  [[rules.allowlists]]
+  description = "Settings, not usernames (auto_login=true), and system accounts that aren't credentials"
+  regexTarget = "secret"
+  regexes = ['''(?i)^(?:true|false|yes|no|on|off|null|none|root|nobody)$''']
