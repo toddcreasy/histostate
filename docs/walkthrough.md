@@ -240,6 +240,35 @@ Every guess got the shape of the curve right and the final number wrong. The gue
 calmer run ends better. The final number comes from how far the model got and what it learned,
 not how smooth the path was.
 
+## 11. Put it in a browser
+
+The site at [histostate.pilotbio.io](https://histostate.pilotbio.io) runs the final model in the
+visitor's browser, so there is no server. The point was the same answer as `histostate ask`, and
+two steps stand between a file and the model: the model itself and the resize to 64x64.
+
+**The model.** `scripts/export_onnx.py` exports it to ONNX with the scaling, mean and spread, and
+softmax inside, then runs all 7,180 test tiles through PyTorch and ONNX Runtime. The largest
+probability difference was 1.25e-05, rounding noise, and no tile's top answer changed. Accuracy
+on those tiles was 94.4%, the two test halves (94.0% and 94.7%) together.
+
+**The resize.** A browser canvas resizes differently from Pillow, and differently in each browser.
+So `frontend/src/lib/resize.ts` ports Pillow's bicubic resize, fixed-point rounding included, and a
+test checks it byte for byte against Pillow on ten images: shrinking, growing, not square, and a
+README figure. All ten matched on the first run. To check the test itself, I changed one constant
+in a copy (the bicubic `a`, -0.5 to -0.75) and every resized case failed.
+
+| Check | Result |
+|---|---|
+| Three example tiles, browser against `histostate ask` | Same top three, same percentages |
+| A 224x224 upload, resized in the browser | Same answer, mucus 99% |
+| A 5000x4000 image, read in strips | Same answer, mucus 100% |
+| First answer on the live site | About 0.9 s, most of it downloading the runtime and model |
+| Each answer after that | About 60 ms |
+
+A bug the tests missed: dragging an example tile into the drop box did nothing. A picture dragged
+from a web page arrives as its address, not a file, and the box only read files. The tests had
+used clicks and uploads, never a drag from the page.
+
 ## What carried over
 
 - Validation from the same pool as training only tells you about more of the same. Build a
@@ -253,4 +282,5 @@ not how smooth the path was.
 Everything above runs on a laptop. `scripts/stage3_cnn.py` picks a CUDA (NVIDIA) GPU, then an
 Apple GPU (MPS), then CPU. A 64-pixel run is 60 epochs at about 10 to 13 seconds each on a GPU;
 CPU is several times slower. The AWS Batch setup in `infra/terraform` is optional and bills real
-money.
+money. To try the trained model without installing anything, use
+[histostate.pilotbio.io](https://histostate.pilotbio.io).

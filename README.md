@@ -48,8 +48,13 @@ It is also a portfolio project:
 - **Evaluation:** a shifted validation set from a different clinical center, several seeds before
   trusting a gap, a final test scored once per model, and activation inspection that caught the
   model using stain color as a shortcut.
-- **AWS:** Terraform with tests, AWS Batch with GPU and CPU queues, ECR, S3, and Nextflow.
-- **Python and CI:** uv, ruff, pytest, pre-commit, and GitHub Actions.
+- **The model on the web:** exported to ONNX and run in the browser with ONNX Runtime Web, so the
+  site has no server. The export matches PyTorch on all 7,180 test tiles, and a port of Pillow's
+  resize matches it byte for byte, so the site gives the same answer as `histostate ask`.
+- **AWS:** Terraform with tests for everything: AWS Batch with GPU and CPU queues, ECR, S3, and
+  Nextflow for training; Amplify Hosting and Route 53 for the site.
+- **Python and CI:** uv, ruff, pytest, pre-commit, and GitHub Actions with four required jobs:
+  lint and tests, a gitleaks secret scan of every commit, Terraform checks, and the site's build.
 
 ## Data
 
@@ -69,12 +74,16 @@ lower on tiles like the right.*
 
 ## How it fits together
 
-<img src="docs/architecture.svg" alt="histostate: training runs on a laptop or, for sweeps, as AWS Batch jobs that Nextflow submits. Each job runs on an EC2 instance, pulls the training image from ECR, downloads PathMNIST from Zenodo, and writes its checkpoint and log to S3. Below, the data flow: NCT-CRC-HE-100K gives train and validation, CRC-VAL-HE-7K from a second clinical center is split into shift-val for tuning and a final test scored once. At the bottom, pre-commit, pull requests, GitHub Actions, and pytest." width="100%">
+<img src="docs/architecture.svg" alt="histostate: training runs on a laptop or, for sweeps, as AWS Batch jobs that Nextflow submits. Each job runs on an EC2 instance, pulls the training image from ECR, downloads PathMNIST from Zenodo, and writes its checkpoint and log to S3. The website in frontend/ is pushed to GitHub, and GitHub Actions deploys it to Amplify Hosting, with its name in Route 53. Below, the data flow: NCT-CRC-HE-100K gives train and validation, CRC-VAL-HE-7K from a second clinical center is split into shift-val for tuning and a final test scored once. At the bottom, pre-commit, pull requests, GitHub Actions, pytest, and the Terraform and site tests." width="100%">
 
 Every stage runs on a laptop. For sweeps (several settings times several seeds), Nextflow sends
 each training run to AWS Batch as its own job. Batch scales the instances to zero when the queue
 is empty, so idle time costs nothing. One 64-pixel run (60 epochs) took 16 to 24 minutes on a T4
-GPU. GitHub shows the diagram as a plain image. Opened in a browser,
+GPU.
+
+The website is static files on Amplify Hosting. The trained model, exported to ONNX, runs in the
+visitor's browser, so nothing is uploaded and there is no server to pay for. Each merge to `main`
+that touches `frontend/` deploys it. GitHub shows the diagram as a plain image. Opened in a browser,
 [`docs/architecture.svg`](docs/architecture.svg) is interactive: hover a box for what it does and
 why, and click it for its docs or source.
 
@@ -85,8 +94,8 @@ diagram above, [`docs/model.svg`](docs/model.svg) is interactive in a browser.
 
 ### AWS services
 
-AWS is optional: it ran the seed sweeps in parallel. The full list of tools, including the ones
-passed over, is in [`docs/software.md`](docs/software.md).
+AWS runs the seed sweeps in parallel, which is optional, and hosts the website. The full list of
+tools, including the ones passed over, is in [`docs/software.md`](docs/software.md).
 
 | Service | Job here | Why this one |
 |---|---|---|
@@ -99,7 +108,8 @@ passed over, is in [`docs/software.md`](docs/software.md).
 
 Not AWS, and why: PyTorch and MedMNIST (the model and the data), Nextflow (fans a sweep out into
 Batch jobs and retries reclaimed Spot jobs), Docker (an open standard Batch consumes), uv, ruff,
-and pytest (language tooling), GitHub Actions (the repo is on GitHub).
+and pytest (language tooling), GitHub Actions (the repo is on GitHub), Next.js and ONNX Runtime
+Web (the website and the model in the browser).
 
 ## Results
 
@@ -163,9 +173,12 @@ To train your own instead (16 to 24 minutes on a GPU):
 uv run python scripts/stage3_cnn.py --save models/stage3_cnn.pt
 ```
 
-Training picks a CUDA (NVIDIA) GPU, then Apple Silicon (MPS, Metal Performance Shaders), then CPU; override
-with `--device`. A laptop is enough for every stage. `scripts/readme_images.py` redraws the tile
-figures above, and `scripts/make_diagrams.py` redraws the two diagrams.
+Training picks a CUDA (NVIDIA) GPU, then Apple Silicon (MPS, Metal Performance Shaders), then
+CPU; override with `--device`. A laptop is enough for every stage. `scripts/readme_images.py`
+redraws the tile figures above, and `scripts/make_diagrams.py` redraws the two diagrams.
+
+To run the website locally (Node.js 24 or newer), see [`frontend/README.md`](frontend/README.md):
+`cd frontend && npm ci && npm run dev`.
 
 ## Train on AWS (optional)
 

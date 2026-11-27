@@ -28,8 +28,9 @@ Not used on purpose:
 | `uv_build` | Build backend | Turns `src/histostate` into an installable package | Native to uv and the src layout, no extra config | **setuptools:** more config for the same result |
 | ruff | Linter and formatter | Checks style and common bugs, formats code | One tool, runs in milliseconds | **flake8 + black + isort:** three tools for the same job |
 | pytest | Test runner | Checks hand-written math against PyTorch (softmax, gradients, convolutions), plus augmentation, splits, and the `ask` command | The standard for Python | **unittest:** more boilerplate |
-| pre-commit | Git hook manager | Runs ruff before every commit | Catches problems before they reach CI | |
-| GitHub Actions | CI (continuous integration) | Runs `uv sync --locked`, ruff, and pytest on every pull request | Lives next to the code; free for a personal project | |
+| pre-commit | Git hook manager | Runs ruff and gitleaks before every commit | Catches problems before they reach CI | |
+| gitleaks | Secret scanner | Scans every commit and every file for keys, tokens, passwords, and email addresses, with extra rules in `.gitleaks.toml` (adapted from ehr-rwe-eln); runs in pre-commit and as the `secrets` CI job | Checks the whole history, not just the latest change, which matters for a public repo | **GitHub's built-in secret scanning:** looks for known token formats from service providers; this project also wants email addresses and plain passwords caught, before a commit as well as in CI |
+| GitHub Actions | CI (continuous integration) and deploys | Four required jobs on every pull request: `lint-test` (`uv sync --locked`, ruff, pytest), `secrets` (gitleaks), `terraform` (fmt, validate, tests, TFLint, Trivy), and `frontend` (the site's lint, test, and build). Deploys the website on merges to `main` | Lives next to the code; free for a public repository | |
 | Claude Code | AI coding assistant | Tutor: explained each concept before code changed and interpreted each result (see `CLAUDE.md`) | The learning goal needed explanations at every step, not just code | |
 
 ## AWS training (optional)

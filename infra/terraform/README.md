@@ -8,7 +8,7 @@ has its own state file in one S3 bucket, `histostate-tfstate-<account ID>`.
 | `bootstrap/` | The state bucket itself (versioned, encrypted, private, TLS only, old versions expire after 90 days) | `bootstrap/terraform.tfstate` |
 | `foundation/` | The monthly budget on resources tagged `project=histostate`, with email alerts at 50% and 80% of actual spend and 100% of forecast | `foundation/terraform.tfstate` |
 | `training/` | What `nextflow run main.nf -profile aws,...` submits to: the S3 bucket for Nextflow's `work/` (expires after 30 days) and `results/`, the ECR repository for the training image (immutable tags, 10 newest kept), and AWS Batch: three job queues (`histostate-gpu-spot`, `histostate-gpu-ondemand`, `histostate-cpu-spot`), each on a compute environment that scales to 0, in the account's default VPC. `terraform output -raw env` prints the `.env` lines | `training/terraform.tfstate` |
-| `site/` | The website at `histostate.pilotbio.io` on Amplify Hosting, as `glia-nav` does it: the app and its `main` branch with no repository attached, the domain (Amplify writes its certificate and alias records into the zone from `project-template`'s `ops/dns`), security headers, and `histostate-github-deploy`, the role `.github/workflows/deploy.yml` assumes through GitHub's OIDC (OpenID Connect) provider. Only pushes to `main` of this repository may assume it, and it can only deploy to this app | `site/terraform.tfstate` |
+| `site/` | The website at `histostate.pilotbio.io` on Amplify Hosting, as `glia-nav` does it: the app and its `main` branch with no repository attached, the domain (Amplify writes its certificate and alias records into the zone from `project-template`'s `ops/dns`), security headers including a Content-Security-Policy, the 404 rule, and `histostate-github-deploy`, the role `.github/workflows/deploy.yml` assumes through GitHub's OIDC (OpenID Connect) provider. Only pushes to `main` of this repository may assume it, and it can only deploy to this app | `site/terraform.tfstate` |
 
 Every resource is tagged `project=histostate` and `managed-by=terraform`. The budget counts only
 the `project` tag. Account-wide settings (the CloudTrail trail, Bedrock invocation logging) are
@@ -28,13 +28,14 @@ terraform plan -out=foundation.tfplan
 terraform apply foundation.tfplan                  # only after the plan is reviewed
 ```
 
-Applies run from a laptop. CI's `terraform` job runs `fmt`, `validate`, TFLint, and Trivy on every
-pull request, with no AWS credentials. A Trivy finding that is a deliberate choice gets a
+Applies run from a laptop. CI's `terraform` job runs `fmt`, `validate`, `terraform test` (the
+`training` and `site` stacks, against a mocked provider), TFLint, and Trivy on every pull request,
+with no AWS credentials. A Trivy finding that is a deliberate choice gets a
 `# trivy:ignore:<ID> <reason>` comment above the resource.
 
 ## Train on AWS
 
-Needs the three stacks applied, AWS credentials (`aws sso login`, single sign-on), Docker, and
+Needs `bootstrap`, `foundation`, and `training` applied, AWS credentials (`aws sso login`, single sign-on), Docker, and
 Nextflow >= 26.04 with Java 17 or newer.
 
 GPU jobs also need EC2 (Elastic Compute Cloud) quota for G instances: Batch cannot launch one while
@@ -66,9 +67,37 @@ nextflow run main.nf -profile aws,cpu --epochs 1 --size 28 --outdir s3://<bucket
 For a GPU run that can't survive a Spot reclaim, set `AWS_BATCH_GPU_QUEUE=histostate-gpu-ondemand`.
 
 Idle cost is close to zero: no NAT (network address translation) gateway, and every compute
-environment scales to 0 vCPUs. What
-bills between runs is S3 storage under `results/` (`work/` expires after 30 days) and the images in
-ECR (10 newest kept).
+environment scales to 0 vCPUs. What bills between runs is S3 storage under `results/` (`work/`
+expires after 30 days) and the images in ECR (10 newest kept).
+
+## Website
+
+`site/` serves `frontend/` at https://histostate.pilotbio.io. Its Route 53 zone is made in
+`project-template`'s `ops/dns` and delegated from the parent domain at Namecheap with four NS
+records; Amplify writes its certificate and alias records into that zone.
+
+`.github/workflows/deploy.yml` deploys on each merge to `main` that touches `frontend/`. It reads
+two repository variables, so the account ID stays out of committed files:
+
+```sh
+gh variable set DEPLOY_ROLE_ARN --body "$(terraform -chdir=infra/terraform/site output -raw deploy_role_arn)"
+gh variable set AMPLIFY_APP_ID --body "$(terraform -chdir=infra/terraform/site output -raw amplify_app_id)"
+```
+
+The deploy role trusts only `main` of this repository, by the immutable subject GitHub's OIDC
+tokens carry (`repo:toddcreasy@5910177/histostate@1393796442:ref:refs/heads/main`), and may only
+deploy to the app's `main` branch.
+
+Security headers, including the Content-Security-Policy, are `local.custom_headers` in
+`site/amplify.tf`. Amplify reads them back in a different shape than it accepts, so the app
+ignores the read-back and `terraform_data.custom_headers` pushes them whenever they change. A
+`check` block warns on every plan where the live headers differ from the code, for example after
+an edit in the console; `terraform apply -replace=terraform_data.custom_headers` restores them.
+New headers reach visitors on the next deploy, since Amplify's CDN keeps serving cached responses
+until then.
+
+Missing paths get the site's 404 page with a 404 status (rule `404-200`, the console's "404
+(Rewrite)"). Paths without a file extension get Amplify's built-in trailing-slash redirect first.
 
 ## How the state bucket was made
 
