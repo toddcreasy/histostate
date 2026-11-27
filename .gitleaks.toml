@@ -146,8 +146,9 @@ keywords = ["user", "login"]
 id = "credential-pair"
 description = "A username and password joined by a colon, after a flag or key that takes credentials: --proxy-user svc:Pa55word, basic_auth: deploy:Pa55word"
 # Only where a credential pair goes, since name:name elsewhere is usually owner:group. gitleaks'
-# own curl-auth-user covers curl -u. $VAR references never match: neither half may hold a $.
-regex = '''(?i)(?:--(?:proxy-)?user|basic[_-]?auth|http[_-]?auth)["']?(?:[ \t]*[=:][ \t]*|[ \t]+)["']?([^\s:"'@/$]{1,64}:[^\s"'@$]{4,})'''
+# own curl-auth-user covers curl -u. $VAR references never match: neither half may hold a $. Nor
+# a backtick, so a pair in Markdown code (`basic_auth: a:b`) ends where the code does.
+regex = '''(?i)(?:--(?:proxy-)?user|basic[_-]?auth|http[_-]?auth)["']?(?:[ \t]*[=:][ \t]*|[ \t]+)["']?([^\s:"'@/$`]{1,64}:[^\s"'@$`]{4,})'''
 secretGroup = 1
 keywords = ["--user", "--proxy-user", "basic_auth", "basicauth", "basic-auth", "http_auth", "httpauth", "http-auth"]
 
