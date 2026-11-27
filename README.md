@@ -8,6 +8,9 @@ no trainer libraries: the point is to learn every piece, from gradient descent u
 
 *The nine tissue classes the model tells apart, three PathMNIST tiles each at 64x64 pixels.*
 
+**[Try it at histostate.pilotbio.io](https://histostate.pilotbio.io)**: drop in a tile or click an
+example. The model runs in your browser; nothing is uploaded. Or run it locally:
+
 ```bash
 uv run histostate ask tile.png
 ```
@@ -91,6 +94,7 @@ passed over, is in [`docs/software.md`](docs/software.md).
 | **EC2** | g4dn.xlarge (NVIDIA T4) and g5.xlarge (A10G) for GPU jobs; c6i, c7i, m6i for CPU | The smallest GPU instances. A T4 trains a 64-pixel epoch in about 10 s. Spot reclaimed both GPU instances mid-run once, so the 64-pixel runs used on-demand. |
 | **ECR** | Stores the training image | Batch pulls it with the instance's IAM (Identity and Access Management) role, so no registry login lives on the instance. |
 | **S3** | Nextflow's working files and the checkpoints and logs | Both the jobs and the laptop read and write it. `work/` expires after 30 days. |
+| **Amplify Hosting and Route 53** | Serves the website at histostate.pilotbio.io | A static site with the model running in the visitor's browser, so there is no server to pay for. GitHub Actions deploys it on each merge through an OIDC (OpenID Connect) role, with no AWS keys stored in GitHub. |
 | **Terraform** (not AWS, but it builds all of the above) | Every resource above, in `infra/terraform` | State in a private, versioned S3 bucket; `terraform test` checks the stack against a mocked provider; a $100 monthly budget alerts on anything tagged `project=histostate`. |
 
 Not AWS, and why: PyTorch and MedMNIST (the model and the data), Nextflow (fans a sweep out into
@@ -186,8 +190,8 @@ time and peak memory per run.
 src/histostate/     model, augmentation, splits, and the ask command
 tests/              pytest tests, no network by default
 scripts/            one training or evaluation script per stage, plus figures
-app/                Gradio demo page around the ask command
-infra/terraform/    Terraform for AWS: state bucket, budget, and AWS Batch
+frontend/           the website: Next.js, the model in the browser with ONNX Runtime Web
+infra/terraform/    Terraform for AWS: state bucket, budget, AWS Batch, and the site on Amplify
 docs/               the walkthrough, the software list, and README images
 ```
 
