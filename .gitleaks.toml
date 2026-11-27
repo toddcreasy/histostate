@@ -100,9 +100,9 @@ secretGroup = 1
 keywords = ["user", "login"]
 
   [[rules.allowlists]]
-  description = "chown's owner:group (chown -R ec2-user:ec2-user), not a key and value: no space after the colon"
-  regexTarget = "match"
-  regexes = ['''(?i)user:[a-z0-9_.-]+$''']
+  description = "chown's owner:group (chown -R ec2-user:ec2-user), on a line that runs chown; a user:password pair elsewhere is still caught"
+  regexTarget = "line"
+  regexes = ['''(?i)\bchown\b[^\n]*user:[a-z0-9_.-]+''']
 
   [[rules.allowlists]]
   description = "Settings, not usernames (auto_login: true), and system accounts that aren't credentials"
@@ -126,6 +126,6 @@ secretGroup = 1
 keywords = ["user=", "username=", "login="]
 
   [[rules.allowlists]]
-  description = "A path, not a username (R_LIBS_USER=~/R/library)"
+  description = "A path, not a username (R_LIBS_USER=~/R/library); a value with @ is a login such as scott/tiger@orcl, so it is still caught"
   regexTarget = "secret"
-  regexes = ['''[/~]''']
+  regexes = ['''^[^@]*[/~][^@]*$''']
