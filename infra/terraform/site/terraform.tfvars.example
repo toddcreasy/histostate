@@ -3,4 +3,4 @@ account_id = "123456789012"
 
 # Optional; defaults in variables.tf.
 # domain_name       = "histostate.pilotbio.io"
-# github_repository = "toddcreasy/histostate"
+# github_repository = "toddcreasy@5910177/histostate@1393796442"
