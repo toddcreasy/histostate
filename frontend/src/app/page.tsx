@@ -1,4 +1,5 @@
 import Classifier from "./classifier";
+import { PageHelp } from "./home-help";
 import Released, { Dot } from "./released";
 
 const REPO = "https://github.com/toddcreasy/histostate";
@@ -35,15 +36,21 @@ const FINDINGS = [
 export default function Home() {
   return (
     <>
-      <header className="bg-hero text-hero-text">
+      <section aria-labelledby="title" className="bg-hero text-hero-text">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1fr_minmax(0,30rem)] lg:py-16">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-accent">
               A tissue classifier, built from the bottom up
             </p>
-            <h1 className="mt-3 text-4xl font-bold leading-tight sm:text-5xl">
-              Name the tissue in a colorectal H&amp;E tile
-            </h1>
+            {/* The "?" sits beside the heading, not in it, so the heading reads as its own text. */}
+            <div className="mt-3 flex items-end text-4xl sm:text-5xl" data-help>
+              <h1 id="title" className="font-bold leading-tight">
+                Name the tissue in a colorectal H&amp;E tile
+              </h1>
+              <span className="mb-2 sm:mb-3">
+                <PageHelp />
+              </span>
+            </div>
             <p className="mt-4 max-w-xl text-lg text-hero-muted">
               A small CNN (convolutional neural network) I trained myself, from gradient descent on
               two weights up. It runs in your browser: pick a tile and it answers in milliseconds.
@@ -74,7 +81,7 @@ export default function Home() {
           </div>
           <Classifier />
         </div>
-      </header>
+      </section>
 
       <main className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
         <h2 className="text-2xl font-bold text-ink">What it learned, and what fooled it</h2>

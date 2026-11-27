@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
-/* Same palette as methyl-flow.pilotbio.io, so the project sites read as one family. */
+/* Dark mode follows a class on <html>, set before paint by the script in layout.tsx, so the
+   header's toggle can override the system setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Same palette as methyl-flow.pilotbio.io, so the project sites read as one family. accent-soft
+   and grid are the hover and panel-border colors the rwe-workbench header and help panel use. */
 :root {
   --bg: #fbfbfa;
   --card: #ffffff;
@@ -9,9 +14,24 @@
   --muted: #52606d;
   --line: #e4e7eb;
   --accent: #eb6834;
+  --accent-soft: #e8eef2;
+  --grid: #9db4c2;
   --hero: #0f1b2d;
   --hero-text: #f5f7fa;
   --hero-muted: #b8c4d3;
+}
+
+/* The same navy family, darkened, as rwe-workbench does it; the orange accent stays. */
+.dark {
+  --bg: #0e1726;
+  --card: #16233a;
+  --ink: #e8eef2;
+  --text: #d4e0e8;
+  --muted: #9db4c2;
+  --line: #2a3b55;
+  --accent-soft: #1c2e4a;
+  --grid: #2a3b55;
+  --hero: #0a111d;
 }
 
 @theme inline {
@@ -22,10 +42,13 @@
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-grid: var(--grid);
   --color-hero: var(--hero);
   --color-hero-text: var(--hero-text);
   --color-hero-muted: var(--hero-muted);
   --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif-display), ui-serif, Georgia, serif;
 }
 
 body {
@@ -36,4 +59,79 @@ body {
 /* Tiles are 64x64; scaled up, they should show their pixels, not a blur. */
 .pixelated {
   image-rendering: pixelated;
+}
+
+/* From here down, as on rwe-workbench (ehr-rwe-eln frontend/app/globals.css). */
+
+/* Help on the page (help.tsx): the header switch hides every "?" button, and the region a note
+   describes gets an outline while the note is open. */
+.docs-off .help-button {
+  display: none;
+}
+
+[data-help-active] {
+  outline: 2px solid var(--grid);
+  outline-offset: 4px;
+  border-radius: 0.5rem;
+}
+
+/* Hover and focus labels on the header's icon buttons: the text is the button's data-tip, and
+   data-tip-dark when the label differs in dark mode. Right-aligned so the last icon's label
+   stays on screen. */
+.tip {
+  position: relative;
+}
+
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  white-space: nowrap;
+  border-radius: 0.375rem;
+  background: var(--ink);
+  color: var(--card);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.dark .tip[data-tip-dark]::after {
+  content: attr(data-tip-dark);
+}
+
+.tip:hover::after,
+.tip:focus-visible::after {
+  opacity: 1;
+}
+
+/* Until a visitor opens their first note, each "?" pulses a soft ring so the help is easy to
+   find. No motion for anyone who asked their system for less. */
+@keyframes help-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .help-new .help-button {
+    animation: help-pulse 2s ease-out infinite;
+  }
+}
+
+/* While the help panel is open, the page makes room for it where the screen can spare the
+   panel's width; narrower, the panel covers the right edge. */
+@media (min-width: 1100px) {
+  .help-panel-open body {
+    padding-right: 380px;
+  }
 }
