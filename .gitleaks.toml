@@ -91,18 +91,15 @@ keywords = ["user", "login"]
 [[rules]]
 id = "username-env"
 description = "A username set unquoted in an env file, YAML, or shell: POSTGRES_USER=value"
+# An inline user:password pair (curl -u svc_user:Pa55word) is not a key and value, so it isn't
+# this rule's to catch; a colon counts as a separator only with whitespace after it, as in YAML.
 # Config and shell files; not .md or .txt, where prose says things like "Login: use SSO". Keys may
 # hold dots, hyphens, and digits (spring.datasource.username, db-user, PG2_USER). $VAR and ${{ }}
 # are references, not values, so they're skipped.
 path = '''(?i)(?:^|/)(?:\.env[^/]*|[^/]*\.(?:env|ya?ml|ini|cfg|conf|properties|sh|bash|zsh)|Dockerfile[^/]*)$'''
-regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z0-9_.-]*(?:user(?:name)?|login)[ \t]*[=:][ \t]*([^\s"'#$`|{]{3,})'''
+regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z0-9_.-]*(?:user(?:name)?|login)(?:[ \t]*=[ \t]*|[ \t]*:[ \t]+)([^\s"'#$`|{]{3,})'''
 secretGroup = 1
 keywords = ["user", "login"]
-
-  [[rules.allowlists]]
-  description = "chown's owner:group (chown -R ec2-user:ec2-user), on a line that runs chown; a user:password pair elsewhere is still caught"
-  regexTarget = "line"
-  regexes = ['''(?i)\bchown\b[^\n]*user:[a-z0-9_.-]+''']
 
   [[rules.allowlists]]
   description = "Settings, not usernames (auto_login: true), and system accounts that aren't credentials"
@@ -126,6 +123,6 @@ secretGroup = 1
 keywords = ["user=", "username=", "login="]
 
   [[rules.allowlists]]
-  description = "A path, not a username (R_LIBS_USER=~/R/library); a value with @ is a login such as scott/tiger@orcl, so it is still caught"
+  description = "A path, not a username (R_LIBS_USER=~/R/library or ./r-lib): a value that starts like one. scott/tiger and scott/tiger@orcl, Oracle's user/password forms, are still caught"
   regexTarget = "secret"
-  regexes = ['''^[^@]*[/~][^@]*$''']
+  regexes = ['''^(?:~|\.{0,2}/)''']
