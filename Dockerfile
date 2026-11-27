@@ -7,7 +7,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends procps \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.20 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /bin/uv
 
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never

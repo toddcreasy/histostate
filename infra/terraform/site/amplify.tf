@@ -43,6 +43,21 @@ locals {
   })
 }
 
+# Drift: the app ignores its custom_headers read-back, so a header edited or removed in the console
+# would never show in a plan. This compares the live headers with local.custom_headers, both as
+# the same JSON list, and warns on every plan and apply where they differ.
+check "custom_headers_match_live" {
+  assert {
+    # Before Amplify reads them back (a new app, or a mocked test) the value is still the object
+    # form written here; after, it's the bare list. Either one, matching the code, is in sync.
+    condition = contains([
+      jsonencode(jsondecode(local.custom_headers)),
+      jsonencode(jsondecode(local.custom_headers).customHeaders),
+    ], jsonencode(jsondecode(aws_amplify_app.site.custom_headers)))
+    error_message = "The site's live security headers differ from local.custom_headers in amplify.tf. Restore them with: terraform apply -replace=terraform_data.custom_headers"
+  }
+}
+
 # Replaced whenever local.custom_headers changes, which pushes the new headers to the app.
 resource "terraform_data" "custom_headers" {
   triggers_replace = local.custom_headers
@@ -58,9 +73,10 @@ resource "terraform_data" "custom_headers" {
 
 # Only this site's own files. The static export has inline scripts (page data, and the theme
 # script that runs before first paint), so script-src needs 'unsafe-inline'; ONNX Runtime compiles
-# WebAssembly, which needs 'wasm-unsafe-eval'. connect-src allows data: for dropped data URLs;
-# images on other sites can't be fetched, which the drop box already explains. Tested in Chrome
-# against a local build before it went live: classify, drop, upload, no violations.
+# WebAssembly, which needs 'wasm-unsafe-eval'. connect-src allows https: so an image dragged in
+# from another site still loads when that site permits it (CORS), as it did before this policy,
+# and data: for dropped data URLs. Tested in Chrome against a local build before it went live:
+# classify, drop, upload, no violations.
 locals {
   content_security_policy = join("; ", [
     "default-src 'self'",
@@ -68,7 +84,7 @@ locals {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    "connect-src 'self' data:",
+    "connect-src 'self' https: data:",
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
