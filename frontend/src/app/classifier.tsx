@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Prediction } from "@/lib/model.ts";
 
+import { ClassifierHelp } from "./home-help";
+
 // The model's tile size. model.ts itself is imported on first use (below): ONNX Runtime only
 // works in a browser, and loading it lazily keeps it out of the first page load.
 const SIZE = 64;
@@ -137,12 +139,18 @@ export default function Classifier() {
         ))}
       </div>
 
-      <div className="mt-5 min-h-40 border-t border-line pt-4" aria-live="polite">
-        {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="mt-5 min-h-40 border-t border-line pt-4" data-help>
+        <p className="flex items-center text-xs font-semibold uppercase tracking-wide text-muted">
+          Answer
+          <ClassifierHelp />
+        </p>
+        <div className="mt-2" aria-live="polite">
+        {error && <p className="text-sm text-red-700 dark:text-red-400">{error}</p>}
         {!error && !result && (
           <p className="text-sm text-muted">{busy ? "Loading the model…" : "The answer appears here."}</p>
         )}
         {!error && result && <Answer result={result} busy={busy} />}
+        </div>
       </div>
     </div>
   );

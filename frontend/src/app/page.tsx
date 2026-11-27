@@ -1,4 +1,5 @@
 import Classifier from "./classifier";
+import { PageHelp } from "./home-help";
 import Released, { Dot } from "./released";
 
 const REPO = "https://github.com/toddcreasy/histostate";
@@ -43,6 +44,7 @@ export default function Home() {
             </p>
             <h1 className="mt-3 text-4xl font-bold leading-tight sm:text-5xl">
               Name the tissue in a colorectal H&amp;E tile
+              <PageHelp />
             </h1>
             <p className="mt-4 max-w-xl text-lg text-hero-muted">
               A small CNN (convolutional neural network) I trained myself, from gradient descent on
