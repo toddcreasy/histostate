@@ -141,3 +141,30 @@ keywords = ["user", "login"]
   description = "Settings, not usernames (auto_login=true), and system accounts that aren't credentials"
   regexTarget = "secret"
   regexes = ['''(?i)^(?:true|false|yes|no|on|off|null|none|root|nobody)$''']
+
+[[rules]]
+id = "credential-pair"
+description = "A username and password joined by a colon, after a flag or key that takes credentials: --proxy-user svc:Pa55word, basic_auth: deploy:Pa55word"
+# Only where a credential pair goes, since name:name elsewhere is usually owner:group. gitleaks'
+# own curl-auth-user covers curl -u. $VAR references never match: neither half may hold a $. Nor
+# a backtick, so a pair in Markdown code (`basic_auth: a:b`) ends where the code does.
+# The password half can't start with /, so a URL after --user (pip install --user git+https://...)
+# isn't read as scheme:password.
+regex = '''(?i)(?:--(?:proxy-)?user|basic[_-]?auth|http[_-]?auth)["']?(?:[ \t]*[=:][ \t]*|[ \t]+)["']?([^\s:"'@/$`]{1,64}:[^\s"'@$`/][^\s"'@$`]{3,})'''
+secretGroup = 1
+keywords = ["--user", "--proxy-user", "basic_auth", "basicauth", "basic-auth", "http_auth", "httpauth", "http-auth"]
+
+  [[rules.allowlists]]
+  description = "A numeric uid:gid (docker run --user 1000:1000), not a login"
+  regexTarget = "secret"
+  regexes = ['''^\d+:\d+$''']
+
+  [[rules.allowlists]]
+  description = "Container and file-owner commands, where --user name:name is a user and group, not a password"
+  regexTarget = "line"
+  regexes = ['''(?i)\b(?:docker|podman|nerdctl|chown|chgrp)\b''']
+
+  [[rules.allowlists]]
+  description = "Placeholders in docs and examples (user:password, <name>:<password>)"
+  regexTarget = "secret"
+  regexes = ['''(?i)^(?:user(?:name)?|<[^>]*>|x+):(?:pass(?:word)?|<[^>]*>|x+|\*+)$''']
