@@ -86,10 +86,11 @@ keywords = ["user", "login"]
 [[rules]]
 id = "username-env"
 description = "A username set unquoted in an env file, YAML, or shell: POSTGRES_USER=value"
-# Config and shell files; not .md or .txt, where prose says things like "Login: use SSO". Keys may
-# hold dots, hyphens, and digits (spring.datasource.username, db-user, PG2_USER). $VAR and ${{ }}
-# are references, not values, so they're skipped.
-path = '''(?i)(?:^|/)(?:\.env[^/]*|[^/]*\.(?:env|ya?ml|ini|cfg|conf|properties|sh|bash|zsh)|Dockerfile[^/]*)$'''
+# Config, shell, and doc files. In .md and .txt only the NAME=value form counts (see the allowlist
+# below), since prose says things like "Login: use SSO". Keys may hold dots, hyphens, and digits
+# (spring.datasource.username, db-user, PG2_USER). $VAR and ${{ }} are references, not values, so
+# they're skipped.
+path = '''(?i)(?:^|/)(?:\.env[^/]*|[^/]*\.(?:env|ya?ml|ini|cfg|conf|properties|sh|bash|zsh|md|txt)|Dockerfile[^/]*)$'''
 regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z0-9_.-]*(?:user(?:name)?|login)[ \t]*[=:][ \t]*([^\s"'#$`|{]{3,})'''
 secretGroup = 1
 keywords = ["user", "login"]
@@ -98,3 +99,10 @@ keywords = ["user", "login"]
   description = "Settings, not usernames (auto_login: true, login_port: 5432), and system accounts that aren't credentials"
   regexTarget = "secret"
   regexes = ['''(?i)^(?:true|false|yes|no|on|off|null|none|root|nobody|\d+)$''']
+
+  [[rules.allowlists]]
+  description = "Prose in .md and .txt (Login: use SSO): only a match with = in it, such as export DB_USER=jsmith, is still scanned there"
+  condition = "AND"
+  regexTarget = "match"
+  regexes = ['''^[^=]*$''']
+  paths = ['''(?i)\.(?:md|txt)$''']
