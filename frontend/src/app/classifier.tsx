@@ -28,6 +28,8 @@ type Result = { source: string; tile: Uint8Array; predictions: Prediction[] };
 const LOAD_FAILED = "Could not load the model. Check your connection and try again.";
 const READ_FAILED = "Could not read that file as an image. Try a PNG or JPEG.";
 const EXAMPLE_FAILED = "Could not load that example tile. Try again.";
+const DROP_FAILED =
+  "Could not use that image. Save it to your computer, then drop the file here or click to choose it.";
 
 export default function Classifier() {
   const [result, setResult] = useState<Result | null>(null);
@@ -39,7 +41,8 @@ export default function Classifier() {
   // overwrite the answer for a tile picked after it.
   const latest = useRef(0);
 
-  async function run(getBlob: () => Promise<Blob>, source: string) {
+  // getFailed: what to say when getBlob itself fails (the image couldn't be fetched).
+  async function run(getBlob: () => Promise<Blob>, source: string, getFailed = EXAMPLE_FAILED) {
     const id = ++latest.current;
     setBusy(true);
     setError(null);
@@ -58,7 +61,7 @@ export default function Classifier() {
         }
       }
     } catch {
-      message = EXAMPLE_FAILED;
+      message = getFailed;
     }
     if (id === latest.current) {
       setError(message);
@@ -78,6 +81,37 @@ export default function Classifier() {
     return run(async () => file, file.name);
   }
 
+  // An image dragged from a web page arrives as its address, not a file: an example tile from
+  // this page, or a picture from another site. Other sites often refuse to share their images
+  // with this page (CORS), so that case says how to get it in as a file instead.
+  function runUrl(url: string) {
+    const name = decodeURIComponent(new URL(url, location.href).pathname.split("/").pop() || "image");
+    return run(
+      async () => {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`${response.status}`);
+        const blob = await response.blob();
+        if (!blob.type.startsWith("image/")) throw new Error(blob.type);
+        return blob;
+      },
+      name,
+      DROP_FAILED,
+    );
+  }
+
+  function runDrop(data: DataTransfer) {
+    const file = data.files[0];
+    if (file) return runFile(file);
+    // text/uri-list can hold comment lines starting with #; the first other line is the address.
+    const url =
+      data
+        .getData("text/uri-list")
+        .split(/\r?\n/)
+        .find((line) => line && !line.startsWith("#")) ?? data.getData("text/plain").trim();
+    if (/^(https?:|data:image\/)/.test(url)) return runUrl(url);
+    setError(DROP_FAILED);
+  }
+
   return (
     <div className="rounded-xl bg-card p-5 text-text shadow-xl ring-1 ring-black/5">
       <div
@@ -94,8 +128,7 @@ export default function Classifier() {
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          const file = e.dataTransfer.files[0];
-          if (file) runFile(file);
+          runDrop(e.dataTransfer);
         }}
         className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-5 text-center text-sm transition-colors ${
           dragging ? "border-accent bg-accent/5" : "border-line hover:border-accent/60"
