@@ -83,14 +83,16 @@ GPU.
 
 The website is static files on Amplify Hosting. The trained model, exported to ONNX, runs in the
 visitor's browser, so nothing is uploaded and there is no server to pay for. Each merge to `main`
-that touches `frontend/` deploys it. GitHub shows the diagram as a plain image. Opened in a browser,
-[`docs/architecture.svg`](docs/architecture.svg) is interactive: hover a box for what it does and
-why, and click it for its docs or source.
+that touches `frontend/` deploys it.
+
+GitHub shows the diagram as a plain image. The
+[interactive version](https://histostate.pilotbio.io/diagrams/architecture.svg) is on the site:
+hover a box for what it does and why, and click it for its docs or source.
 
 <img src="docs/model.svg" alt="The 64-pixel CNN: a 3 x 64 x 64 tile goes through three blocks of 3x3 convolution, ReLU, and max pooling (32, 64, and 64 filters), shrinking to 64 x 8 x 8, then a linear layer gives 9 scores and softmax turns them into probabilities." width="100%">
 
 93,193 weights in `src/histostate/cnn.py`. The 28-pixel version stops after two blocks. Like the
-diagram above, [`docs/model.svg`](docs/model.svg) is interactive in a browser.
+diagram above, it has an [interactive version](https://histostate.pilotbio.io/diagrams/model.svg).
 
 ### AWS services
 

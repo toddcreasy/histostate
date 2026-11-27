@@ -41,3 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+
+# Copies of docs/*.svg, made by scripts/copy-diagrams.mjs before each build
+/public/diagrams/

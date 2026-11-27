@@ -5,7 +5,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-diagrams.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-diagrams.mjs",
     "build": "next build",
     "lint": "eslint",
     "test": "node --test src/lib/*.test.ts"
