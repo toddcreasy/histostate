@@ -148,9 +148,9 @@ description = "A username and password joined by a colon, after a flag or key th
 # Only where a credential pair goes, since name:name elsewhere is usually owner:group. gitleaks'
 # own curl-auth-user covers curl -u. $VAR references never match: neither half may hold a $. Nor
 # a backtick, so a pair in Markdown code (`basic_auth: a:b`) ends where the code does.
-# The password half can't start with /, so a URL after --user (pip install --user git+https://...)
-# isn't read as scheme:password.
-regex = '''(?i)(?:--(?:proxy-)?user|basic[_-]?auth|http[_-]?auth)["']?(?:[ \t]*[=:][ \t]*|[ \t]+)["']?([^\s:"'@/$`]{1,64}:[^\s"'@$`/][^\s"'@$`]{3,})'''
+# The password half can't start with //, so a URL after --user (pip install --user git+https://...)
+# isn't read as scheme:password; a password starting with one / is still caught.
+regex = '''(?i)(?:--(?:proxy-)?user|basic[_-]?auth|http[_-]?auth)["']?(?:[ \t]*[=:][ \t]*|[ \t]+)["']?([^\s:"'@/$`]{1,64}:(?:[^\s"'@$`/][^\s"'@$`]{3,}|/[^\s"'@$`/][^\s"'@$`]{2,}))'''
 secretGroup = 1
 keywords = ["--user", "--proxy-user", "basic_auth", "basicauth", "basic-auth", "http_auth", "httpauth", "http-auth"]
 
