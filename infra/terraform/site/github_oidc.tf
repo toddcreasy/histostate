@@ -41,8 +41,11 @@ data "aws_iam_policy_document" "deploy" {
       "amplify:StartDeployment",
       "amplify:GetJob",
     ]
+    # Amplify authorizes CreateDeployment and StartDeployment on .../deployments/* and GetJob on
+    # .../jobs/*, all under this one branch.
     resources = [
       aws_amplify_branch.main.arn,
+      "${aws_amplify_branch.main.arn}/deployments/*",
       "${aws_amplify_branch.main.arn}/jobs/*",
     ]
   }

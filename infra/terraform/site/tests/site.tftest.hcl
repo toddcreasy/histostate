@@ -60,7 +60,7 @@ run "only_main_of_this_repo_can_deploy" {
       for c in data.aws_iam_policy_document.deploy_trust.statement[0].condition :
       c.variable == "token.actions.githubusercontent.com:sub" &&
       c.test == "StringEquals" &&
-      toset(c.values) == toset(["repo:toddcreasy/histostate:ref:refs/heads/main"])
+      toset(c.values) == toset(["repo:toddcreasy@5910177/histostate@1393796442:ref:refs/heads/main"])
     ])
     error_message = "The deploy role must trust only pushes to main of toddcreasy/histostate."
   }

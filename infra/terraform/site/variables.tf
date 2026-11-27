@@ -10,7 +10,7 @@ variable "domain_name" {
 }
 
 variable "github_repository" {
-  description = "owner/name of the repository whose main branch may deploy the site."
+  description = "The repository whose main branch may deploy the site, as its OIDC token names it. The repo uses GitHub's immutable subjects (gh api repos/OWNER/REPO/actions/oidc/customization/sub), so owner and repository carry their numeric IDs and a renamed or recreated repository can't match."
   type        = string
-  default     = "toddcreasy/histostate"
+  default     = "toddcreasy@5910177/histostate@1393796442"
 }
