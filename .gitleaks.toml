@@ -54,14 +54,14 @@ description = "A password, secret, token, or key set in an env file or YAML: DB_
 # Env files, YAML, shell, config, and Markdown only: in code, NAME=value is usually not a literal.
 path = '''(?i)(?:^|/)(?:\.env[^/]*|[^/]*\.(?:env|ya?ml|ini|cfg|conf|properties|sh|bash|zsh|md|txt)|Dockerfile[^/]*)$'''
 # At a line's start or after a space or ";", so -e POSTGRES_PASSWORD=value in a command counts.
-regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z0-9_.-]*(?:password|passwd|pwd|secret|token|api_key)[a-z_]*[ \t]*[=:][ \t]*([^\s"'#$`|]{3,})'''
+regex = '''(?im)(?:^|[ \t;])(?:export[ \t]+)?[a-z0-9_.-]*(?:password|passwd|pwd|secret|token|api_key)[a-z0-9_.-]*[ \t]*[=:][ \t]*([^\s"'#$`|]{3,})'''
 secretGroup = 1
 keywords = ["password", "passwd", "pwd", "secret", "token", "api_key"]
 
   [[rules.allowlists]]
   description = "GitHub Actions' id-token permission (id-token: write), which lets a workflow ask for an OIDC token; not a token itself"
   regexTarget = "match"
-  regexes = ['''id-token:[ \t]*(?:write|read|none)$''']
+  regexes = ['''id-token:[ \t]*(?:write|read|none)[,}]*$''']
 
 [[rules]]
 id = "url-credentials"
@@ -83,6 +83,11 @@ regex = '''(?i)[a-z_]*(?:user(?:name)?|login)["']?[ \t]*[:=][ \t]*["']([^"'\s]{3
 secretGroup = 1
 keywords = ["user", "login"]
 
+  [[rules.allowlists]]
+  description = "Docker's numeric user, quoted (user: \"1000:1000\"), a uid and gid rather than a login"
+  regexTarget = "match"
+  regexes = ['''(?i)(?:^|[ \t])user[ \t]*:[ \t]*["']\d+(?::\d+)?["']$''']
+
 [[rules]]
 id = "username-env"
 description = "A username set unquoted in an env file, YAML, or shell: POSTGRES_USER=value"
@@ -95,6 +100,22 @@ secretGroup = 1
 keywords = ["user", "login"]
 
   [[rules.allowlists]]
-  description = "Settings, not usernames (auto_login: true, login_port: 5432), and system accounts that aren't credentials"
+  description = "Settings, not usernames (auto_login: true), and system accounts that aren't credentials"
   regexTarget = "secret"
-  regexes = ['''(?i)^(?:true|false|yes|no|on|off|null|none|root|nobody|\d+)$''']
+  regexes = ['''(?i)^(?:true|false|yes|no|on|off|null|none|root|nobody)$''']
+
+  [[rules.allowlists]]
+  description = "Docker's numeric user (user: 1000 or 1000:1000), a uid and gid rather than a login"
+  regexTarget = "match"
+  regexes = ['''(?i)(?:^|[ \t])user[ \t]*:[ \t]*\d+(?::\d+)?$''']
+
+[[rules]]
+id = "username-env-docs"
+description = "A username in a shell-style assignment inside Markdown or text: export DB_USER=value"
+# username-env leaves .md and .txt alone because prose says things like "Login: use SSO". Shell
+# lines in docs still count: an all-caps key ending in USER, USERNAME, or LOGIN, then = with no
+# spaces. $VAR and ${{ }} are references, not values, so they're skipped.
+path = '''(?i)(?:^|/)[^/]*\.(?:md|txt)$'''
+regex = '''(?m)(?:^|[ \t;])(?:export[ \t]+)?[A-Z][A-Z0-9_]*(?:USER|USERNAME|LOGIN)=([^\s"'#$`|{]{3,})'''
+secretGroup = 1
+keywords = ["user=", "username=", "login="]
